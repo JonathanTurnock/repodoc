@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  html,body{margin:0;padding:0;height:100%;background:#181a1e;}
+  *{box-sizing:border-box;}
+  ::-webkit-scrollbar{width:11px;height:11px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:6px;border:3px solid transparent;background-clip:content-box;}
+  ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.24);background-clip:content-box;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  @keyframes livepulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(.7);}}
+  textarea::placeholder,input::placeholder{color:#6d727c;}
+  .adr-md{color:#c7ccd4;font-size:15px;line-height:1.75;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+  .adr-md h1{font-size:30px;line-height:1.2;margin:0 0 8px;color:#f0f2f5;letter-spacing:-.02em;font-weight:650;}
+  .adr-md h2{font-size:19px;margin:34px 0 12px;color:#eceef2;font-weight:620;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px;}
+  .adr-md h3{font-size:15px;margin:24px 0 8px;color:#e2e5ea;font-weight:620;text-transform:uppercase;letter-spacing:.04em;}
+  .adr-md p{margin:0 0 14px;}
+  .adr-md ul,.adr-md ol{margin:0 0 16px;padding-left:22px;}
+  .adr-md li{margin:0 0 7px;}
+  .adr-md a{color:#6ea8ff;text-decoration:none;}
+  .adr-md a:hover{text-decoration:underline;}
+  .adr-md strong{color:#f0f2f5;font-weight:640;}
+  .adr-md code{background:rgba(255,255,255,.07);padding:2px 6px;border-radius:5px;font-family:ui-monospace,'Cascadia Code','SF Mono',Menlo,monospace;font-size:13px;color:#e6b673;}
+  .adr-md pre{background:#111316;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:16px 18px;overflow:auto;margin:0 0 18px;}
+  .adr-md pre code{background:none;padding:0;color:#c7ccd4;font-size:13px;line-height:1.6;}
+  .adr-md blockquote{margin:0 0 16px;padding:2px 16px;border-left:3px solid #4c8bf5;color:#9aa0aa;}
+  .adr-md table{border-collapse:collapse;margin:0 0 18px;width:100%;font-size:14px;}
+  .adr-md th,.adr-md td{border:1px solid rgba(255,255,255,.1);padding:8px 12px;text-align:left;}
+  .adr-md th{background:rgba(255,255,255,.04);color:#e2e5ea;font-weight:620;}
+  .adr-md hr{border:none;border-top:1px solid rgba(255,255,255,.09);margin:26px 0;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</helmet>
+<div style="display:flex;height:100vh;width:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;color:#c7ccd4;background:#181a1e;">
+
+  <!-- Activity bar: single extension icon -->
+  <div style="width:52px;flex:none;background:#1f2226;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;align-items:center;padding:10px 0;">
+    <div title="Backlog" style="width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#7fa8ff;background:rgba(108,150,245,.16);box-shadow:inset 2px 0 0 -1px #7fa8ff;">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="9.5" y="4" width="5" height="10" rx="1"></rect><rect x="16" y="4" width="5" height="13" rx="1"></rect></svg>
+    </div>
+  </div>
+
+  <!-- In-app explorer -->
+  <div style="width:250px;flex:none;background:#1c1f23;border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;overflow-y:auto;">
+    <div style="padding:14px 16px 10px;font-size:11px;font-weight:700;letter-spacing:.09em;color:#8a8f98;text-transform:uppercase;display:flex;align-items:center;gap:8px;">
+      <span style="width:7px;height:7px;border-radius:2px;background:#7fa8ff;"></span>Backlog · acme-web
+    </div>
+
+    <div style="padding:2px 8px 14px;">
+      <!-- BOARDS -->
+      <div onClick="{{ toggleNavBoards }}" style="{{ secBoardsHeader }}" style-hover="color:#c7ccd4;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="{{ chevBoards }}"><path d="m9 18 6-6-6-6"></path></svg>
+        <span style="flex:1;">Boards</span>
+        <span style="font-weight:600;color:#6d727c;">{{ boardCount }}</span>
+      </div>
+      <sc-if value="{{ navBoards }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-bottom:8px;">
+          <sc-for list="{{ boardRows }}" as="b" hint-placeholder-count="3">
+            <div onClick="{{ b.onSelect }}" style="{{ b.rowStyle }}" style-hover="background:rgba(255,255,255,.05);color:#dfe2e8;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex:none;opacity:.8;"><rect x="3" y="4" width="5" height="16" rx="1"></rect><rect x="9.5" y="4" width="5" height="10" rx="1"></rect><rect x="16" y="4" width="5" height="13" rx="1"></rect></svg>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ b.name }}</span>
+              <span style="font-size:10.5px;color:#6d727c;">{{ b.count }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- DECISIONS -->
+      <div onClick="{{ toggleNavDecisions }}" style="{{ secDecHeader }}" style-hover="color:#c7ccd4;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="{{ chevDec }}"><path d="m9 18 6-6-6-6"></path></svg>
+        <span style="flex:1;">Decisions</span>
+        <span style="font-weight:600;color:#6d727c;">{{ decCount }}</span>
+      </div>
+      <sc-if value="{{ navDecisions }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-bottom:8px;">
+          <sc-for list="{{ decisionRows }}" as="d" hint-placeholder-count="4">
+            <div onClick="{{ d.onSelect }}" style="{{ d.rowStyle }}" style-hover="background:rgba(255,255,255,.05);color:#dfe2e8;">
+              <span style="font-family:ui-monospace,monospace;font-size:10.5px;color:#6d727c;flex:none;">{{ d.num }}</span>
+              <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ d.title }}</span>
+              <span style="width:6px;height:6px;border-radius:50%;background:{{ d.statusDot }};flex:none;"></span>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- DOCS -->
+      <div onClick="{{ toggleNavDocs }}" style="{{ secDocsHeader }}" style-hover="color:#c7ccd4;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="{{ chevDocs }}"><path d="m9 18 6-6-6-6"></path></svg>
+        <span style="flex:1;">Docs</span>
+      </div>
+      <sc-if value="{{ navDocs }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <sc-for list="{{ docsTree }}" as="cat" hint-placeholder-count="3">
+            <div>
+              <div onClick="{{ cat.onToggle }}" style="display:flex;align-items:center;gap:6px;padding:5px 10px 5px 22px;border-radius:6px;cursor:pointer;color:#b3b8c0;font-size:12.5px;font-weight:550;" style-hover="background:rgba(255,255,255,.04);">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="{{ cat.chevronStyle }}"><path d="m9 18 6-6-6-6"></path></svg>
+                <span style="flex:1;">{{ cat.label }}</span>
+              </div>
+              <sc-if value="{{ cat.expanded }}" hint-placeholder-val="{{ true }}">
+                <sc-for list="{{ cat.items }}" as="d" hint-placeholder-count="3">
+                  <div onClick="{{ d.onSelect }}" style="{{ d.rowStyle }}" style-hover="background:rgba(255,255,255,.05);color:#dfe2e8;">{{ d.label }}</div>
+                </sc-for>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div style="flex:1;min-width:0;display:flex;flex-direction:column;">
+
+    <!-- Top bar -->
+    <div style="height:46px;flex:none;background:#1f2226;border-bottom:1px solid rgba(255,255,255,.06);display:flex;align-items:center;padding:0 16px;gap:14px;">
+      <div style="display:flex;align-items:center;gap:8px;font-size:13px;min-width:0;">
+        <span style="color:#8a8f98;">{{ crumbSection }}</span>
+        <span style="color:#4b5058;">/</span>
+        <span style="color:#eceef2;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ crumbLeaf }}</span>
+      </div>
+      <div style="flex:1;"></div>
+      <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="display:flex;align-items:center;gap:7px;background:#15171a;border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:0 9px;height:30px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>
+            <input value="{{ query }}" onInput="{{ onSearch }}" placeholder="Search cards" style="background:none;border:none;outline:none;color:#d4d7dd;font-size:13px;width:150px;font-family:inherit;" />
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;padding-left:4px;">
+            <sc-for list="{{ agentChips }}" as="ag" hint-placeholder-count="4">
+              <div title="{{ ag.name }}" onClick="{{ ag.onToggle }}" style="{{ ag.chipStyle }}">{{ ag.initials }}</div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <!-- BOARD -->
+    <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;background:#181a1e;padding:18px 16px 20px;">
+        <div style="display:flex;gap:14px;height:100%;align-items:flex-start;">
+          <sc-for list="{{ columns }}" as="col" hint-placeholder-count="5">
+            <div onDragOver="{{ col.onDragOver }}" onDrop="{{ col.onDrop }}" style="width:296px;flex:none;max-height:100%;display:flex;flex-direction:column;background:#212429;border:1px solid {{ col.borderColor }};border-radius:12px;">
+              <div style="display:flex;align-items:center;gap:9px;padding:12px 14px 9px;flex:none;">
+                <span style="width:9px;height:9px;border-radius:3px;background:{{ col.dot }};flex:none;"></span>
+                <span style="font-size:12.5px;font-weight:650;color:#e2e5ea;letter-spacing:.02em;text-transform:uppercase;">{{ col.name }}</span>
+                <span style="font-size:11px;color:#7d828b;background:rgba(255,255,255,.06);border-radius:20px;padding:1px 8px;font-weight:600;">{{ col.count }}</span>
+                <div style="flex:1;"></div>
+                <sc-if value="{{ col.hasWip }}" hint-placeholder-val="{{ false }}"><span style="{{ col.wipStyle }}">{{ col.wipText }}</span></sc-if>
+              </div>
+
+              <div style="flex:1;min-height:30px;overflow-y:auto;padding:2px 10px 6px;display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{ col.items }}" as="card" hint-placeholder-count="3">
+                  <div>
+                    <sc-if value="{{ card.isPlaceholder }}" hint-placeholder-val="{{ false }}">
+                      <div style="height:64px;border-radius:10px;border:2px dashed rgba(108,150,245,.6);background:rgba(108,150,245,.08);"></div>
+                    </sc-if>
+                    <sc-if value="{{ card.isReal }}" hint-placeholder-val="{{ true }}">
+                      <div draggable="true" onDragStart="{{ card.onDragStart }}" onDragEnd="{{ card.onDragEnd }}" onDragOver="{{ card.onDragOver }}" onClick="{{ card.onOpen }}" style="{{ card.rootStyle }}" style-hover="border-color:rgba(255,255,255,.2);background:#2e333b;">
+                        <sc-if value="{{ card.hasLabels }}" hint-placeholder-val="{{ true }}">
+                          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;">
+                            <sc-for list="{{ card.labels }}" as="lb" hint-placeholder-count="2">
+                              <span style="{{ lb.style }}">{{ lb.name }}</span>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+                        <div style="display:flex;gap:7px;align-items:flex-start;">
+                          <sc-if value="{{ card.showPriority }}" hint-placeholder-val="{{ false }}"><span title="Priority" style="width:6px;height:6px;border-radius:50%;background:{{ card.priorityColor }};margin-top:6px;flex:none;box-shadow:0 0 0 3px {{ card.priorityGlow }};"></span></sc-if>
+                          <div style="font-size:13.5px;line-height:1.4;color:#dfe2e8;font-weight:500;flex:1;">{{ card.title }}</div>
+                        </div>
+
+                        <sc-if value="{{ card.isLive }}" hint-placeholder-val="{{ false }}">
+                          <div style="margin-top:10px;background:rgba(108,150,245,.09);border:1px solid rgba(108,150,245,.22);border-radius:8px;padding:7px 9px;">
+                            <div style="display:flex;align-items:center;gap:7px;">
+                              <span style="width:7px;height:7px;border-radius:50%;background:#5cd68a;flex:none;animation:livepulse 1.3s ease-in-out infinite;"></span>
+                              <span style="font-size:11px;color:#aeb9c9;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ card.status }}</span>
+                              <span style="font-size:10.5px;color:#7d828b;font-variant-numeric:tabular-nums;">{{ card.progressText }}</span>
+                            </div>
+                            <div style="margin-top:6px;height:4px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden;">
+                              <div style="height:100%;border-radius:3px;background:linear-gradient(90deg,#4c8bf5,#5cd68a);width:{{ card.progressPct }};"></div>
+                            </div>
+                          </div>
+                        </sc-if>
+
+                        <div style="display:flex;align-items:center;gap:12px;margin-top:11px;color:#7d828b;font-size:11px;">
+                          <sc-if value="{{ card.hasSubtasks }}" hint-placeholder-val="{{ false }}">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                              {{ card.subtaskText }}
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ card.hasFile }}" hint-placeholder-val="{{ false }}">
+                            <span style="display:flex;align-items:center;gap:4px;font-family:ui-monospace,'Cascadia Code','SF Mono',Menlo,monospace;font-size:10.5px;color:#8a8f98;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px;">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M13 2v7h7"></path></svg>
+                              {{ card.fileText }}
+                            </span>
+                          </sc-if>
+                          <sc-if value="{{ card.hasComments }}" hint-placeholder-val="{{ false }}">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                              {{ card.comments }}
+                            </span>
+                          </sc-if>
+                          <div style="flex:1;"></div>
+                          <span style="color:#6d727c;">{{ card.updated }}</span>
+                          <sc-if value="{{ card.hasAgent }}" hint-placeholder-val="{{ true }}">
+                            <span title="{{ card.agentName }}" style="width:22px;height:22px;border-radius:50%;background:{{ card.agentColor }};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:none;">{{ card.agentInitials }}</span>
+                          </sc-if>
+                        </div>
+                      </div>
+                    </sc-if>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="padding:6px 10px 11px;flex:none;">
+                <sc-if value="{{ col.isAdding }}" hint-placeholder-val="{{ false }}">
+                  <div>
+                    <textarea value="{{ addText }}" onInput="{{ onAddInput }}" onKeyDown="{{ col.onAddKey }}" placeholder="Enter a title for this card..." style="width:100%;background:#2b3038;border:1px solid rgba(108,150,245,.5);border-radius:9px;padding:9px 10px;color:#e2e5ea;font-size:13px;font-family:inherit;resize:none;outline:none;min-height:56px;line-height:1.4;"></textarea>
+                    <div style="display:flex;align-items:center;gap:8px;margin-top:7px;">
+                      <button onClick="{{ col.onAddSave }}" style="background:#3d6fd6;color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit;">Add card</button>
+                      <button onClick="{{ onAddCancel }}" style="background:none;border:none;color:#9aa0aa;font-size:16px;cursor:pointer;line-height:1;padding:4px;">✕</button>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ col.notAdding }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ col.onAddOpen }}" style="width:100%;text-align:left;background:none;border:none;color:#8a8f98;font-size:12.5px;padding:7px 8px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:7px;font-family:inherit;" style-hover="background:rgba(255,255,255,.05);color:#c7ccd4;">
+                    <span style="font-size:16px;line-height:1;">+</span> Add a card
+                  </button>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="width:270px;flex:none;">
+            <button onClick="{{ addList }}" style="width:100%;text-align:left;background:rgba(255,255,255,.03);border:1px dashed rgba(255,255,255,.12);color:#8a8f98;font-size:13px;padding:12px 14px;border-radius:12px;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;" style-hover="background:rgba(255,255,255,.06);color:#c7ccd4;">
+              <span style="font-size:17px;line-height:1;">+</span> Add another list
+            </button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- DECISION VIEW -->
+    <sc-if value="{{ isAdr }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;overflow-y:auto;background:#181a1e;">
+        <div style="max-width:760px;margin:0 auto;padding:46px 56px 90px;">
+          <div style="font-size:11px;color:#6d727c;letter-spacing:.03em;margin-bottom:18px;font-family:ui-monospace,monospace;">{{ decCrumb }}</div>
+          <div ref="{{ setAdrNode }}" class="adr-md"></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- DOCS VIEW -->
+    <sc-if value="{{ isDocs }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;min-height:0;overflow-y:auto;background:#181a1e;">
+        <div style="max-width:760px;margin:0 auto;padding:46px 56px 90px;">
+          <div style="font-size:11px;color:#6d727c;letter-spacing:.03em;margin-bottom:18px;font-family:ui-monospace,monospace;">{{ docsCrumb }}</div>
+          <div ref="{{ setDocsNode }}" class="adr-md"></div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- Status bar -->
+    <div style="height:24px;flex:none;background:#15171a;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:11px;color:#8a8f98;">
+      <span style="display:flex;align-items:center;gap:6px;"><span style="width:7px;height:7px;border-radius:50%;background:#5cd68a;"></span>{{ liveCount }} agents active</span>
+      <span>{{ totalCards }} cards</span>
+      <div style="flex:1;"></div>
+      <span style="font-family:ui-monospace,monospace;">.backlog/</span>
+    </div>
+  </div>
+
+  <!-- Card detail modal -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(2px);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:56px 20px;overflow-y:auto;">
+      <div onClick="{{ stop }}" style="width:640px;max-width:100%;background:#22262c;border:1px solid rgba(255,255,255,.1);border-radius:14px;box-shadow:0 24px 70px rgba(0,0,0,.55);overflow:hidden;">
+        <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.07);">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                <sc-for list="{{ modal.labels }}" as="lb" hint-placeholder-count="2"><span style="{{ lb.style }}">{{ lb.name }}</span></sc-for>
+                <span style="{{ modal.colBadgeStyle }}">{{ modal.colName }}</span>
+              </div>
+              <div style="font-size:20px;font-weight:640;color:#f0f2f5;line-height:1.3;letter-spacing:-.01em;">{{ modal.title }}</div>
+            </div>
+            <button onClick="{{ closeModal }}" style="background:none;border:none;color:#8a8f98;font-size:20px;cursor:pointer;line-height:1;padding:2px 4px;flex:none;" style-hover="color:#e2e5ea;">✕</button>
+          </div>
+        </div>
+
+        <div style="padding:20px 24px 24px;max-height:60vh;overflow-y:auto;">
+          <sc-if value="{{ modal.isLive }}" hint-placeholder-val="{{ false }}">
+            <div style="background:rgba(108,150,245,.1);border:1px solid rgba(108,150,245,.25);border-radius:10px;padding:12px 14px;margin-bottom:20px;display:flex;align-items:center;gap:11px;">
+              <span style="width:9px;height:9px;border-radius:50%;background:#5cd68a;animation:livepulse 1.3s ease-in-out infinite;flex:none;"></span>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;color:#dfe2e8;font-weight:500;">{{ modal.status }}</div>
+                <div style="font-size:11.5px;color:#8a8f98;margin-top:2px;">{{ modal.agentName }} · {{ modal.progressText }} complete</div>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;gap:28px;margin-bottom:22px;">
+            <div><div style="font-size:11px;color:#7d828b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;">Assignee</div>
+              <sc-if value="{{ modal.hasAgent }}" hint-placeholder-val="{{ true }}"><div style="display:flex;align-items:center;gap:8px;"><span style="width:26px;height:26px;border-radius:50%;background:{{ modal.agentColor }};color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;">{{ modal.agentInitials }}</span><span style="font-size:13px;color:#dfe2e8;">{{ modal.agentName }}</span></div></sc-if>
+              <sc-if value="{{ modal.noAgent }}" hint-placeholder-val="{{ false }}"><span style="font-size:13px;color:#6d727c;">Unassigned</span></sc-if>
+            </div>
+            <div><div style="font-size:11px;color:#7d828b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;">Priority</div><span style="{{ modal.priorityStyle }}">{{ modal.priorityLabel }}</span></div>
+          </div>
+
+          <sc-if value="{{ modal.hasDesc }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-bottom:22px;">
+              <div style="font-size:11px;color:#7d828b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;">Description</div>
+              <div style="font-size:13.5px;line-height:1.65;color:#c1c6cd;">{{ modal.desc }}</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ modal.hasChecklist }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:22px;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><div style="font-size:11px;color:#7d828b;text-transform:uppercase;letter-spacing:.05em;">Checklist</div><span style="font-size:11px;color:#7d828b;">{{ modal.subtaskText }}</span></div>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <sc-for list="{{ modal.checklist }}" as="c" hint-placeholder-count="3">
+                  <div onClick="{{ c.onToggle }}" style="display:flex;align-items:center;gap:9px;cursor:pointer;padding:4px 2px;">
+                    <span style="{{ c.boxStyle }}"><sc-if value="{{ c.done }}" hint-placeholder-val="{{ false }}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>
+                    <span style="{{ c.textStyle }}">{{ c.text }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ modal.hasFiles }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-bottom:22px;">
+              <div style="font-size:11px;color:#7d828b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Files touched</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <sc-for list="{{ modal.files }}" as="f" hint-placeholder-count="2">
+                  <div style="display:flex;align-items:center;gap:8px;font-family:ui-monospace,'Cascadia Code',Menlo,monospace;font-size:12px;color:#a9b2be;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:7px;padding:6px 10px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7d828b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M13 2v7h7"></path></svg>
+                    {{ f }}
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:&quot;100%&quot;,&quot;height&quot;:&quot;100%&quot;}}">
+class Component extends DCLogic {
+  state = this.seed();
+
+  seed(){
+    this.AGENTS = {
+      claude: {name:'Claude', color:'#d97757', initials:'CL'},
+      cursor: {name:'Cursor', color:'#4c8bf5', initials:'CU'},
+      copilot:{name:'Copilot',color:'#a371f7', initials:'CP'},
+    };
+    this.LABELS = {
+      backend:{name:'backend', color:'#3fb27f'},
+      frontend:{name:'frontend',color:'#4c8bf5'},
+      bug:{name:'bug', color:'#e5534b'},
+      infra:{name:'infra', color:'#d99a30'},
+      docs:{name:'docs', color:'#9a7bd6'},
+      perf:{name:'perf', color:'#c9a227'},
+    };
+    const cards = {
+      c1:{title:'Add rate limiting to the public API', labels:['backend','infra'], priority:'med', files:['src/api/middleware/rateLimit.ts'], subtasks:{done:0,total:3}, comments:2, updated:'3d',
+          desc:'Requests from a single IP can currently hammer unauthenticated endpoints. Add a sliding-window limiter backed by Redis and return 429 with a Retry-After header.',
+          checklist:[{text:'Design the window key scheme',done:false},{text:'Wire limiter into the router',done:false},{text:'Add integration tests',done:false}],
+          activity:[{who:'Sam',agent:'sam',text:'created this card',when:'3 days ago'},{who:'Sam',agent:'sam',text:'added labels backend, infra',when:'3 days ago'}]},
+      c2:{title:'Dark mode for the settings page', labels:['frontend'], priority:'low', subtasks:{done:0,total:4}, updated:'5d',
+          desc:'Settings is the only screen that ignores the theme token set. Migrate it to CSS variables and verify contrast.',
+          checklist:[{text:'Audit hardcoded colors',done:false},{text:'Map to theme tokens',done:false},{text:'Fix icon fills',done:false},{text:'Screenshot review',done:false}],
+          activity:[{who:'Sam',agent:'sam',text:'created this card',when:'5 days ago'}]},
+      c3:{title:'Investigate memory leak in the ingest worker', labels:['bug','perf'], priority:'high', files:['src/workers/ingest.ts'], comments:5, updated:'1d',
+          desc:'RSS climbs ~40MB/hour under steady load and never releases. Suspect an unbounded cache in the transform step.',
+          checklist:[], activity:[{who:'Sam',agent:'sam',text:'flagged as high priority',when:'yesterday'}]},
+
+      c4:{title:'Migrate auth to OAuth 2.1', labels:['backend'], priority:'high', agent:'claude', files:['src/auth/'], subtasks:{done:0,total:5}, updated:'6h',
+          desc:'Replace the legacy session cookie flow with OAuth 2.1 + PKCE. Keep the old flow behind a feature flag during rollout.',
+          checklist:[{text:'Add PKCE challenge generation',done:false},{text:'Token exchange endpoint',done:false},{text:'Refresh rotation',done:false},{text:'Migrate existing sessions',done:false},{text:'Feature-flag cutover',done:false}],
+          activity:[{who:'Sam',agent:'sam',text:'assigned to Claude',when:'6 hours ago'},{who:'Claude',agent:'claude',text:'queued — waiting on decision 0003',when:'6 hours ago'}]},
+      c5:{title:'Write a decision on the event bus', labels:['docs'], priority:'med', updated:'2d',
+          desc:'Capture the decision to move async work onto an event bus before implementation starts. See decision 0003 draft.',
+          checklist:[], activity:[{who:'Sam',agent:'sam',text:'created this card',when:'2 days ago'}]},
+
+      c6:{title:'Refactor the payment service', labels:['backend'], priority:'high', agent:'claude', live:true, status:'editing src/payments/stripe.ts', progress:62, files:['src/payments/stripe.ts','src/payments/webhook.ts'], subtasks:{done:3,total:5}, comments:4, updated:'2m',
+          desc:'Split the 900-line StripeService into a gateway, a webhook handler, and a reconciliation job. Preserve idempotency keys.',
+          checklist:[{text:'Extract gateway interface',done:true},{text:'Move webhook parsing out',done:true},{text:'Idempotency key store',done:true},{text:'Reconciliation job',done:false},{text:'Backfill test coverage',done:false}],
+          activity:[{who:'Claude',agent:'claude',text:'started work',when:'40 min ago'},{who:'Claude',agent:'claude',text:'extracted the gateway interface',when:'22 min ago'},{who:'Claude',agent:'claude',text:'is editing stripe.ts',when:'just now'}]},
+      c7:{title:'Fix flaky checkout e2e test', labels:['bug'], priority:'med', agent:'cursor', live:true, status:'running test suite (3/12)', progress:38, files:['e2e/checkout.spec.ts'], updated:'just now',
+          desc:'checkout.spec.ts fails ~1 in 5 runs on CI, always at the payment redirect step. Likely a race on the iframe load.',
+          checklist:[], activity:[{who:'Cursor',agent:'cursor',text:'reproduced the failure locally',when:'12 min ago'},{who:'Cursor',agent:'cursor',text:'is running the suite',when:'just now'}]},
+      c8:{title:'Build the analytics dashboard charts', labels:['frontend'], priority:'med', agent:'copilot', live:true, status:'generating chart components', progress:25, subtasks:{done:1,total:4}, updated:'just now',
+          desc:'Three charts on the dashboard: DAU line, revenue bars, funnel. Use the existing chart primitives, no new deps.',
+          checklist:[{text:'DAU line chart',done:true},{text:'Revenue bar chart',done:false},{text:'Funnel chart',done:false},{text:'Responsive layout',done:false}],
+          activity:[{who:'Copilot',agent:'copilot',text:'scaffolded the chart directory',when:'8 min ago'},{who:'Copilot',agent:'copilot',text:'is generating components',when:'just now'}]},
+
+      c9:{title:'Add the /v2/search endpoint', labels:['backend'], priority:'med', agent:'claude', files:['src/api/v2/search.ts'], subtasks:{done:5,total:5}, comments:3, updated:'4h',
+          desc:'Full-text search over documents with cursor pagination. PR #482 open for review.',
+          checklist:[{text:'Query parser',done:true},{text:'Cursor pagination',done:true},{text:'Highlighting',done:true},{text:'Rate limit',done:true},{text:'OpenAPI spec',done:true}],
+          activity:[{who:'Claude',agent:'claude',text:'opened PR #482',when:'4 hours ago'},{who:'Sam',agent:'sam',text:'requested changes on pagination',when:'2 hours ago'}]},
+      c10:{title:'Redesign empty states', labels:['frontend'], priority:'low', subtasks:{done:2,total:2}, updated:'1d',
+          desc:'Empty lists, empty search, and first-run states all show a bare "No results". Add illustration + a next action.',
+          checklist:[{text:'Empty list state',done:true},{text:'Empty search state',done:true}],
+          activity:[{who:'Sam',agent:'sam',text:'moved to In Review',when:'yesterday'}]},
+
+      c11:{title:'Upgrade to Node 20', labels:['infra'], priority:'med', updated:'1w', desc:'Bump CI images and the Dockerfile to Node 20 LTS. Verify native deps rebuild.', checklist:[], activity:[{who:'Sam',agent:'sam',text:'merged PR #461',when:'1 week ago'}]},
+      c12:{title:'Cache user sessions in Redis', labels:['backend','perf'], priority:'med', updated:'1w', desc:'Session lookups were hitting Postgres on every request. Now cached with a 15-minute TTL.', checklist:[], activity:[{who:'Claude',agent:'claude',text:'shipped the cache layer',when:'1 week ago'}]},
+      c13:{title:'Document the deploy runbook', labels:['docs'], priority:'low', updated:'2w', desc:'Step-by-step for a production deploy, including rollback.', checklist:[], activity:[{who:'Sam',agent:'sam',text:'wrote the runbook',when:'2 weeks ago'}]},
+    };
+    const mainLists = [
+      {id:'backlog', name:'Backlog', dot:'#7d828b', cardIds:['c1','c2','c3']},
+      {id:'todo', name:'To Do', dot:'#4c8bf5', cardIds:['c4','c5']},
+      {id:'doing', name:'In Progress', dot:'#5cd68a', wip:3, cardIds:['c6','c7','c8']},
+      {id:'review', name:'In Review', dot:'#d99a30', cardIds:['c9','c10']},
+      {id:'done', name:'Done', dot:'#3fb27f', cardIds:['c11','c12','c13']},
+    ];
+
+    const bugCards = {
+      g1:{title:'Login button unresponsive on Safari 17', labels:['bug','frontend'], priority:'high', files:['src/ui/LoginButton.tsx'], comments:3, updated:'2h', desc:'The primary login button does nothing on Safari 17 — fine on Chrome and Firefox. Suspect a pointer-events regression from the last CSS refactor.', checklist:[]},
+      g2:{title:'CSV export drops the final row', labels:['bug'], priority:'med', files:['src/export/csv.ts'], updated:'1d', desc:'Exported CSVs are missing the last record. Off-by-one on the stream flush boundary.', checklist:[{text:'Add a failing test',done:false},{text:'Fix flush boundary',done:false}]},
+      g3:{title:'Webhook retries fire twice', labels:['bug','backend'], priority:'high', updated:'5h', desc:'Downstream receives duplicate deliveries under load. Idempotency key is not honored on retry.', checklist:[]},
+      g4:{title:'Avatar upload fails over 2MB', labels:['bug','frontend'], priority:'med', agent:'cursor', live:true, status:'reproducing locally', progress:30, files:['src/ui/AvatarUpload.tsx'], updated:'just now', desc:'Uploads larger than 2MB silently fail with no toast. Body-size limit plus missing error handling.', checklist:[]},
+      g5:{title:'Timezone off-by-one in daily reports', labels:['bug','backend'], priority:'med', subtasks:{done:2,total:2}, updated:'3d', desc:'Daily report buckets shift a day for users west of UTC. Fixed by bucketing in the user timezone.', checklist:[{text:'Reproduce with a UTC-8 user',done:true},{text:'Bucket in user tz',done:true}]},
+    };
+    const bugLists = [
+      {id:'reported', name:'Reported', dot:'#e5534b', cardIds:['g1','g2']},
+      {id:'triaged', name:'Triaged', dot:'#d99a30', cardIds:['g3']},
+      {id:'fixing', name:'Fixing', dot:'#5cd68a', wip:2, cardIds:['g4']},
+      {id:'verified', name:'Verified', dot:'#3fb27f', cardIds:['g5']},
+    ];
+
+    const sprintCards = {
+      p1:{title:'Onboarding checklist UI', labels:['frontend'], priority:'med', subtasks:{done:0,total:3}, updated:'1d', desc:'A dismissible checklist guiding new users through first setup.', checklist:[{text:'Checklist component',done:false},{text:'Progress persistence',done:false},{text:'Dismiss and restore',done:false}]},
+      p2:{title:'Ship /v2/search to production', labels:['backend'], priority:'high', agent:'claude', live:true, status:'deploying to prod', progress:72, files:['src/api/v2/search.ts'], updated:'just now', desc:'Roll out the reviewed /v2/search endpoint behind a flag, then ramp to 100%.', checklist:[{text:'Canary at 5%',done:true},{text:'Ramp to 50%',done:true},{text:'Ramp to 100%',done:false}]},
+      p3:{title:'Billing usage meter', labels:['backend','perf'], priority:'high', agent:'copilot', live:true, status:'generating aggregation query', progress:45, updated:'just now', desc:'Per-account usage metering for metered billing. Aggregate hourly, roll up daily.', checklist:[]},
+      p4:{title:'Team invites flow', labels:['frontend'], priority:'med', subtasks:{done:3,total:3}, updated:'6h', desc:'Invite teammates by email with role selection.', checklist:[{text:'Invite form',done:true},{text:'Email template',done:true},{text:'Accept flow',done:true}]},
+      p5:{title:'Password reset emails', labels:['backend'], priority:'med', updated:'4d', desc:'Transactional password-reset email with a single-use token. Shipped.', checklist:[]},
+    };
+    const sprintLists = [
+      {id:'todo', name:'To Do', dot:'#4c8bf5', cardIds:['p1']},
+      {id:'doing', name:'In Progress', dot:'#5cd68a', wip:3, cardIds:['p2','p3']},
+      {id:'review', name:'In Review', dot:'#d99a30', cardIds:['p4']},
+      {id:'done', name:'Done', dot:'#3fb27f', cardIds:['p5']},
+    ];
+
+    const boards = {
+      main:   {name:'Project Backlog', lists:mainLists,   cards:cards},
+      sprint: {name:'Sprint 24',       lists:sprintLists, cards:sprintCards},
+      bugs:   {name:'Bug Triage',      lists:bugLists,    cards:bugCards},
+    };
+    return {
+      boards, activeBoard:'main', view:'board', query:'', filterAgent:null,
+      dragId:null, dragList:null, dragIndex:null,
+      addingCol:null, addText:'', openCardId:null,
+      selectedAdr:'0001', nextId:14,
+      selectedDoc:'intro', docsCollapsed:{},
+      nav:{boards:true, decisions:true, docs:true},
+    };
+  }
+  board(){ return this.state.boards[this.state.activeBoard]; }
+
+  DOCS(){
+    return [
+      {id:'getting-started', label:'Getting Started', items:[
+        {id:'intro', label:'Introduction', path:'docs/getting-started/introduction.md',
+         body:`# Introduction\n\nWelcome to **acme-web**. This is the project handbook — everything a contributor (human or agent) needs to be productive, rendered from the markdown living under \`docs/\`.\n\n> This site is generated from a Docusaurus-style tree. Add a folder, drop in a \`.md\` file, and it shows up in the sidebar.\n\n## What you'll find here\n\n- **Getting Started** — set up your environment and learn the layout.\n- **Guides** — how to do common tasks the right way.\n- **Reference** — the CLI and configuration surface.\n\nUse the sidebar to navigate. Pages are plain markdown, so they read just as well in your editor.`},
+        {id:'install', label:'Installation', path:'docs/getting-started/installation.md',
+         body:`# Installation\n\nGet a local environment running in a couple of minutes.\n\n## Prerequisites\n\n- Node 20 LTS\n- pnpm 9+\n- A running PostgreSQL 16 instance\n\n## Steps\n\n\`\`\`bash\ngit clone git@github.com:acme/acme-web.git\ncd acme-web\npnpm install\ncp .env.example .env\npnpm db:migrate\npnpm dev\n\`\`\`\n\nThe app comes up on \`http://localhost:3000\`. If migrations fail, check that \`DATABASE_URL\` in \`.env\` points at your local Postgres.`},
+        {id:'structure', label:'Project Structure', path:'docs/getting-started/structure.md',
+         body:`# Project Structure\n\nA quick map of the repository.\n\n| Path | Purpose |\n| --- | --- |\n| \`src/api/\` | HTTP handlers and middleware |\n| \`src/workers/\` | Background jobs |\n| \`src/payments/\` | Billing + Stripe integration |\n| \`docs/\` | This documentation tree |\n| \`.backlog/\` | Tasks and decision records |\n\n## Conventions\n\n- One module per bounded concern; avoid god-files.\n- Colocate tests next to the code they cover.\n- Anything architecturally significant gets a **decision** record.`},
+      ]},
+      {id:'guides', label:'Guides', items:[
+        {id:'writing-tasks', label:'Writing Good Tasks', path:'docs/guides/writing-tasks.md',
+         body:`# Writing Good Tasks\n\nA task on the board is a unit of work an agent or a human can pick up without asking questions.\n\n## A good task has\n\n1. A clear, outcome-oriented **title**.\n2. Enough **description** to start without a meeting.\n3. A **checklist** breaking it into verifiable steps.\n4. The **files** it's expected to touch, when known.\n\n## Example\n\n> **Refactor the payment service** — split the 900-line StripeService into a gateway, a webhook handler, and a reconciliation job. Preserve idempotency keys.\n\nSmall, well-scoped tasks flow across the board; vague epics stall in Backlog.`},
+        {id:'agents', label:'Working with Agents', path:'docs/guides/agents.md',
+         body:`# Working with Agents\n\nAgents pick up assigned cards and report progress live on the board.\n\n## How it works\n\n- Assign a card to an agent from the card detail panel.\n- The agent posts a **live status** and a progress bar while it works.\n- Every action lands in the card's **activity** feed.\n\n## Guidance\n\n- Agents read relevant **decisions** before starting related work.\n- Keep one agent per card to avoid conflicting edits.\n- Review the diff before moving a card to **Done**.`},
+        {id:'conventions', label:'Backlog Conventions', path:'docs/guides/conventions.md',
+         body:`# Backlog Conventions\n\nThe backlog is a flat view of the whole project. A few rules keep it legible.\n\n- **Labels** describe the area of change: \`backend\`, \`frontend\`, \`bug\`, \`infra\`, \`docs\`, \`perf\`.\n- **Priority** is one of high / medium / low — reserve high for things blocking others.\n- Cards move left-to-right; they don't skip **In Review**.\n- When a card raises a significant choice, split out a **decision** and link it.`},
+      ]},
+      {id:'reference', label:'Reference', items:[
+        {id:'cli', label:'CLI', path:'docs/reference/cli.md',
+         body:`# CLI Reference\n\n\`\`\`bash\nbacklog list                 # print the board as text\nbacklog add "Fix the thing"  # add a card to Backlog\nbacklog move <id> in-progress\nbacklog assign <id> claude\n\`\`\`\n\n## Global flags\n\n- \`--json\` — machine-readable output\n- \`--project <path>\` — operate on a different project root`},
+        {id:'config', label:'Configuration', path:'docs/reference/config.md',
+         body:`# Configuration\n\nProject settings live in \`.backlog/config.json\`.\n\n\`\`\`json\n{\n  "columns": ["Backlog", "To Do", "In Progress", "In Review", "Done"],\n  "labels": ["backend", "frontend", "bug", "infra", "docs", "perf"],\n  "agents": ["claude", "cursor", "copilot"]\n}\n\`\`\`\n\nColumns and labels are fully user-defined — edit them here and the board picks up the change.`},
+      ]},
+    ];
+  }
+  currentDoc(){ let f=null; this.DOCS().forEach(c=>c.items.forEach(d=>{ if(d.id===this.state.selectedDoc) f=Object.assign({cat:c.label},d); })); return f || Object.assign({cat:this.DOCS()[0].label}, this.DOCS()[0].items[0]); }
+  renderDocs(){ if(this.state.view!=='docs' || !this.docsNode) return; const d=this.currentDoc(); this.renderMd(this.docsNode, d?d.body:''); }
+  renderMd(node, body){ if(!node) return; if(window.marked){ node.innerHTML=window.marked.parse(body); } else { node.textContent=body; } }
+
+  componentDidMount(){
+    if(window.marked && window.marked.setOptions){ window.marked.setOptions({breaks:false}); }
+    if(!window.marked){
+      this._poll = setInterval(()=>{ if(window.marked){ clearInterval(this._poll); this.forceUpdate(); this.renderAdr(); this.renderDocs(); } }, 120);
+    }
+  }
+  componentWillUnmount(){ if(this._poll) clearInterval(this._poll); }
+  componentDidUpdate(){ this.renderAdr(); this.renderDocs(); }
+
+  ADRS(){
+    return [
+      {id:'0001', num:'0001', file:'0001-record-decisions.md', title:'Record architecture decisions', status:'Accepted',
+       body:`# Decision 0001 — Record architecture decisions\n\n**Status:** Accepted &nbsp;·&nbsp; **Date:** 2024-11-02\n\n## Context\n\nWe make architecturally significant decisions on this project regularly, but the reasoning lives in scattered Slack threads and pull-request comments. New contributors — human and agent alike — have no single place to understand *why* the system is shaped the way it is.\n\n## Decision\n\nWe will keep a collection of **Architecture Decision Records**. An ADR is a short markdown file describing one decision, its context, and its consequences.\n\n- Records live in \`.backlog/adr/\` and are numbered sequentially.\n- Each record is immutable once **Accepted** — we supersede rather than edit.\n- Agents are instructed to read relevant ADRs before starting related work.\n\n## Consequences\n\n- The reasoning behind decisions becomes durable and searchable.\n- There is a small ongoing cost to writing a record for each significant decision.\n- Superseded records stay in the history, giving a timeline of how thinking evolved.`},
+      {id:'0002', num:'0002', file:'0002-postgres.md', title:'Use PostgreSQL as the primary datastore', status:'Accepted',
+       body:`# Decision 0002 — Use PostgreSQL as the primary datastore\n\n**Status:** Accepted &nbsp;·&nbsp; **Date:** 2024-11-14\n\n## Context\n\nThe application needs relational integrity for billing and account data, plus room to grow into full-text search and JSON documents without adding a second system too early.\n\n## Decision\n\nUse **PostgreSQL 16** as the single primary datastore.\n\n- Relational tables for core domain entities.\n- \`jsonb\` columns for flexible, schema-light payloads.\n- Native full-text search until scale demands a dedicated engine.\n\n> One boring, well-understood database beats three exciting ones.\n\n## Consequences\n\n- A single operational surface to back up, monitor, and tune.\n- Full-text search will need re-evaluation past ~10M documents.\n- Team standardizes on one query language and one migration tool.`},
+      {id:'0003', num:'0003', file:'0003-event-driven.md', title:'Adopt an event-driven architecture for async work', status:'Proposed',
+       body:`# Decision 0003 — Adopt an event-driven architecture\n\n**Status:** Proposed &nbsp;·&nbsp; **Date:** 2025-01-09\n\n## Context\n\nSeveral workflows — email, webhooks, analytics ingest — are handled inline in request handlers today. This couples user-facing latency to background work and makes retries awkward.\n\n## Decision\n\n*(Proposed)* Introduce an internal **event bus**. Request handlers emit domain events; subscribers process them out of band.\n\n\`\`\`ts\nbus.emit('payment.captured', { orderId, amount });\n\`\`\`\n\n| Concern | Approach |\n| --- | --- |\n| Delivery | at-least-once, idempotent consumers |\n| Ordering | per-aggregate key |\n| Failure | dead-letter queue + replay |\n\n## Consequences\n\n- Request handlers get faster and simpler.\n- New failure modes: partial processing, out-of-order delivery.\n- Requires the idempotency work tracked in the payment refactor card.`},
+      {id:'0004', num:'0004', file:'0004-typescript.md', title:'Standardize on TypeScript across the codebase', status:'Accepted',
+       body:`# Decision 0004 — Standardize on TypeScript\n\n**Status:** Accepted &nbsp;·&nbsp; **Date:** 2025-02-01\n\n## Context\n\nThe codebase is a mix of JavaScript and TypeScript. The untyped modules are a recurring source of runtime bugs and slow agents down, since they can't rely on types to navigate.\n\n## Decision\n\nAll application code is **TypeScript** in \`strict\` mode.\n\n- \`strict: true\`, \`noUncheckedIndexedAccess: true\`.\n- No new \`.js\` files in \`src/\`.\n- Legacy modules migrated opportunistically when touched.\n\n## Consequences\n\n- Better editor and agent assistance; fewer runtime type errors.\n- Up-front migration cost for the remaining JavaScript modules.\n- A shared type vocabulary across the team.`},
+    ];
+  }
+  currentAdr(){ return this.ADRS().find(a=>a.id===this.state.selectedAdr) || this.ADRS()[0]; }
+  renderAdr(){
+    if(this.state.view!=='adr' || !this.adrNode) return;
+    const adr=this.currentAdr();
+    if(window.marked){ this.adrNode.innerHTML = window.marked.parse(adr.body); }
+    else { this.adrNode.textContent = adr.body; }
+  }
+
+  // ---- drag & drop ----
+  setDragTarget(listId, index){
+    if(this.state.dragList!==listId || this.state.dragIndex!==index) this.setState({dragList:listId, dragIndex:index});
+  }
+  drop(){
+    const id=this.state.dragId; if(!id){ return; }
+    const targetListId = this.state.dragList, targetIndex = this.state.dragIndex==null?9999:this.state.dragIndex;
+    const b=this.board();
+    const lists=b.lists.map(l=>({...l,cardIds:[...l.cardIds]}));
+    let src=null, srcIdx=-1;
+    lists.forEach(l=>{const i=l.cardIds.indexOf(id); if(i>-1){src=l;srcIdx=i;}});
+    if(!src){ this.setState({dragId:null,dragList:null,dragIndex:null}); return; }
+    src.cardIds.splice(srcIdx,1);
+    const tgt=lists.find(l=>l.id===(targetListId||src.id));
+    let idx=targetIndex;
+    if(src.id===tgt.id && srcIdx<idx) idx--;
+    idx=Math.max(0,Math.min(idx,tgt.cardIds.length));
+    tgt.cardIds.splice(idx,0,id);
+    const boards={...this.state.boards,[this.state.activeBoard]:{...b,lists}};
+    this.setState({boards,dragId:null,dragList:null,dragIndex:null});
+  }
+
+  toggleCheck(cardId, i){
+    const b=this.board();
+    const c={...b.cards[cardId]}; c.checklist=c.checklist.map((x,j)=>j===i?{...x,done:!x.done}:x);
+    const done=c.checklist.filter(x=>x.done).length;
+    if(c.subtasks) c.subtasks={done, total:c.checklist.length};
+    const boards={...this.state.boards,[this.state.activeBoard]:{...b,cards:{...b.cards,[cardId]:c}}};
+    this.setState({boards});
+  }
+  addCard(listId){
+    const t=this.state.addText.trim(); if(!t){ this.setState({addingCol:null,addText:''}); return; }
+    const id='n'+this.state.nextId;
+    const b=this.board();
+    const cards={...b.cards, [id]:{title:t, labels:[], priority:'med', updated:'now', checklist:[]}};
+    const lists=b.lists.map(l=> l.id===listId ? {...l,cardIds:[...l.cardIds,id]} : l);
+    const boards={...this.state.boards,[this.state.activeBoard]:{...b,cards,lists}};
+    this.setState({boards,nextId:this.state.nextId+1,addText:''});
+  }
+
+  matches(card){
+    const q=this.state.query.trim().toLowerCase();
+    if(q && !card.title.toLowerCase().includes(q)) return false;
+    if(this.state.filterAgent && card.agent!==this.state.filterAgent) return false;
+    return true;
+  }
+  labelChip(key){
+    const l=this.LABELS[key]; if(!l) return null;
+    return {name:l.name, style:`font-size:10px;font-weight:600;letter-spacing:.02em;padding:2px 8px;border-radius:20px;color:${l.color};background:${l.color}22;border:1px solid ${l.color}44;`};
+  }
+
+  renderVals(){
+    const S=this.state;
+    const secBase='display:flex;align-items:center;gap:6px;padding:7px 8px;cursor:pointer;color:#8a8f98;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:6px;transition:color .12s;';
+    const chev=(open)=>`transition:transform .15s;transform:rotate(${open?90:0}deg);flex:none;`;
+
+    const b=this.board();
+    const columns=b.lists.map(l=>{
+      const real=l.cardIds.map(id=>({id,card:b.cards[id]})).filter(x=>x.card && this.matches(x.card));
+      const items=[];
+      const isTarget = S.dragId && S.dragList===l.id;
+      real.forEach((x,i)=>{
+        if(isTarget && S.dragIndex===i) items.push({isPlaceholder:true, isReal:false, id:'ph-'+l.id});
+        const c=x.card, idx=i;
+        const item={
+          id:x.id, isReal:true, isPlaceholder:false,
+          title:c.title, updated:c.updated||'',
+          rootStyle:`background:${S.dragId===x.id?'#2e333b':'#282c33'};border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:11px 12px;cursor:pointer;transition:background .12s,border-color .12s;opacity:${S.dragId===x.id?'0.4':'1'};`,
+          hasLabels:!!(c.labels&&c.labels.length),
+          labels:(c.labels||[]).map(k=>this.labelChip(k)).filter(Boolean),
+          showPriority:c.priority==='high'||c.priority==='med',
+          priorityColor:c.priority==='high'?'#e5534b':'#d99a30',
+          priorityGlow:c.priority==='high'?'rgba(229,83,75,.18)':'rgba(217,154,48,.16)',
+          isLive:!!c.live, status:c.status||'', progressText:(c.progress||0)+'%', progressPct:(c.progress||0)+'%',
+          hasSubtasks:!!(c.subtasks&&c.subtasks.total), subtaskText:c.subtasks?`${c.subtasks.done}/${c.subtasks.total}`:'',
+          hasFile:!!(c.files&&c.files.length), fileText:c.files?(c.files[0].replace(/\/+$/,'').split('/').pop()):'',
+          hasComments:!!c.comments, comments:c.comments||0,
+          hasAgent:!!c.agent, agentName:c.agent?this.AGENTS[c.agent].name:'', agentColor:c.agent?this.AGENTS[c.agent].color:'', agentInitials:c.agent?this.AGENTS[c.agent].initials:'',
+          onOpen:()=>this.setState({openCardId:x.id}),
+          onDragStart:(e)=>{ if(e&&e.dataTransfer){e.dataTransfer.effectAllowed='move';} this.setState({dragId:x.id,dragList:l.id,dragIndex:idx}); },
+          onDragEnd:()=>this.setState({dragId:null,dragList:null,dragIndex:null}),
+          onDragOver:(e)=>{ e.preventDefault(); e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const before=e.clientY < r.top+r.height/2; this.setDragTarget(l.id, before?idx:idx+1); },
+        };
+        items.push(item);
+      });
+      if(isTarget && (S.dragIndex>=real.length || S.dragIndex==null)) items.push({isPlaceholder:true,isReal:false,id:'ph-end-'+l.id});
+      if(isTarget && real.length===0) { /* placeholder already added via >=length */ }
+      const overCount=l.wip && real.length>l.wip;
+      return {
+        id:l.id, name:l.name, dot:l.dot, count:real.length, items,
+        borderColor: isTarget?'rgba(108,150,245,.5)':'rgba(255,255,255,.06)',
+        hasWip:!!l.wip, wipText:l.wip?`${real.length}/${l.wip}`:'',
+        wipStyle:`font-size:10px;font-weight:600;padding:1px 7px;border-radius:20px;color:${overCount?'#e5534b':'#7d828b'};background:${overCount?'rgba(229,83,75,.14)':'rgba(255,255,255,.05)'};`,
+        isAdding:S.addingCol===l.id, notAdding:S.addingCol!==l.id,
+        onAddOpen:()=>this.setState({addingCol:l.id,addText:''}),
+        onAddSave:()=>this.addCard(l.id),
+        onAddKey:(e)=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); this.addCard(l.id);} if(e.key==='Escape'){ this.setState({addingCol:null,addText:''}); } },
+        onDragOver:(e)=>{ e.preventDefault(); if(e.dataTransfer)e.dataTransfer.dropEffect='move'; if(!S.dragId)return; const empty=l.cardIds.filter(id=>b.cards[id]&&this.matches(b.cards[id])).length===0; if(empty) this.setDragTarget(l.id,0); },
+        onDrop:(e)=>{ e.preventDefault(); this.drop(); },
+      };
+    });
+
+    const agentChips=Object.keys(this.AGENTS).map(k=>{
+      const a=this.AGENTS[k], on=S.filterAgent===k;
+      return {name:a.name, initials:a.initials,
+        chipStyle:`width:26px;height:26px;border-radius:50%;background:${a.color};color:#fff;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .12s;opacity:${S.filterAgent&&!on?'0.35':'1'};box-shadow:${on?'0 0 0 2px #181a1e, 0 0 0 4px '+a.color:'none'};`,
+        onToggle:()=>this.setState({filterAgent:on?null:k}),
+      };
+    });
+
+    const rowSel=(on,extra)=>`display:flex;align-items:center;gap:8px;padding:5px 10px 5px 24px;font-size:13px;cursor:pointer;border-radius:6px;transition:all .12s;color:${on?'#dfe2e8':'#9aa0aa'};background:${on?'rgba(108,150,245,.16)':'transparent'};font-weight:${on?'600':'400'};${extra||''}`;
+    const boardRows=Object.keys(S.boards).map(id=>{
+      const bd=S.boards[id];
+      const total=bd.lists.reduce((n,l)=>n+l.cardIds.length,0);
+      const on=S.view==='board'&&S.activeBoard===id;
+      return {name:bd.name, count:total, rowStyle:rowSel(on),
+        onSelect:()=>this.setState({view:'board',activeBoard:id,query:'',filterAgent:null,openCardId:null}),
+      };
+    });
+    const decDot={Accepted:'#3fb27f',Proposed:'#d99a30',Superseded:'#7d828b'};
+    const decisionRows=this.ADRS().map(a=>{
+      const on=S.view==='adr'&&S.selectedAdr===a.id;
+      return {num:a.num, title:a.title, statusDot:decDot[a.status]||'#7d828b', rowStyle:rowSel(on,'font-size:12.5px;'),
+        onSelect:()=>this.setState({view:'adr',selectedAdr:a.id}),
+      };
+    });
+
+    // modal
+    let modal=null; const oc=S.openCardId?b.cards[S.openCardId]:null;
+    if(oc){
+      const list=b.lists.find(l=>l.cardIds.includes(S.openCardId));
+      const prC={high:'#e5534b',med:'#d99a30',low:'#7d828b'}[oc.priority]||'#7d828b';
+      const prL={high:'High',med:'Medium',low:'Low'}[oc.priority]||'Medium';
+      modal={
+        title:oc.title,
+        labels:(oc.labels||[]).map(k=>this.labelChip(k)).filter(Boolean),
+        colName:list?list.name:'', colBadgeStyle:`font-size:10px;font-weight:600;padding:2px 9px;border-radius:20px;color:#c7ccd4;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);`,
+        isLive:!!oc.live, status:oc.status||'', progressText:(oc.progress||0)+'%',
+        hasAgent:!!oc.agent, noAgent:!oc.agent, agentName:oc.agent?this.AGENTS[oc.agent].name:'', agentColor:oc.agent?this.AGENTS[oc.agent].color:'', agentInitials:oc.agent?this.AGENTS[oc.agent].initials:'',
+        priorityStyle:`font-size:12px;font-weight:600;padding:3px 11px;border-radius:20px;color:${prC};background:${prC}22;border:1px solid ${prC}44;`, priorityLabel:prL,
+        hasDesc:!!oc.desc, desc:oc.desc||'',
+        hasChecklist:!!(oc.checklist&&oc.checklist.length),
+        subtaskText:oc.checklist&&oc.checklist.length?`${oc.checklist.filter(x=>x.done).length}/${oc.checklist.length}`:'',
+        checklist:(oc.checklist||[]).map((x,i)=>({text:x.text,done:x.done,
+          boxStyle:`width:18px;height:18px;border-radius:5px;flex:none;display:flex;align-items:center;justify-content:center;border:1.5px solid ${x.done?'#3d6fd6':'rgba(255,255,255,.25)'};background:${x.done?'#3d6fd6':'transparent'};`,
+          textStyle:`font-size:13.5px;color:${x.done?'#6d727c':'#c7ccd4'};text-decoration:${x.done?'line-through':'none'};`,
+          onToggle:()=>this.toggleCheck(S.openCardId,i)})),
+        hasFiles:!!(oc.files&&oc.files.length), files:oc.files||[],
+      };
+    }
+
+    let liveCount=0, totalCards=0;
+    b.lists.forEach(l=>l.cardIds.forEach(id=>{ const c=b.cards[id]; if(c){ totalCards++; if(c.live) liveCount++; } }));
+
+    const docsTree=this.DOCS().map(cat=>{
+      const expanded = !S.docsCollapsed[cat.id];
+      return {
+        label:cat.label, expanded,
+        chevronStyle:`transition:transform .15s;transform:rotate(${expanded?90:0}deg);flex:none;`,
+        onToggle:()=>this.setState({docsCollapsed:{...S.docsCollapsed,[cat.id]:expanded}}),
+        items:cat.items.map(d=>{ const on=S.view==='docs'&&S.selectedDoc===d.id; return {
+          label:d.label,
+          rowStyle:`font-size:12.5px;padding:4px 10px 4px 36px;border-radius:6px;cursor:pointer;transition:all .12s;color:${on?'#dfe2e8':'#9aa0aa'};background:${on?'rgba(108,150,245,.16)':'transparent'};font-weight:${on?'600':'400'};`,
+          onSelect:()=>this.setState({view:'docs',selectedDoc:d.id}),
+        };}),
+      };
+    });
+    const cd=this.currentDoc();
+    const curAdr=this.currentAdr();
+    let crumbSection='Boards', crumbLeaf=b.name;
+    if(S.view==='adr'){ crumbSection='Decisions'; crumbLeaf=curAdr?curAdr.title:''; }
+    else if(S.view==='docs'){ crumbSection='Docs'; crumbLeaf=cd?cd.label:''; }
+
+    return {
+      isBoard:S.view==='board', isAdr:S.view==='adr', isDocs:S.view==='docs',
+      crumbSection, crumbLeaf,
+      boardCount:Object.keys(S.boards).length, decCount:this.ADRS().length,
+      navBoards:S.nav.boards, navDecisions:S.nav.decisions, navDocs:S.nav.docs,
+      toggleNavBoards:()=>this.setState({nav:{...S.nav,boards:!S.nav.boards}}),
+      toggleNavDecisions:()=>this.setState({nav:{...S.nav,decisions:!S.nav.decisions}}),
+      toggleNavDocs:()=>this.setState({nav:{...S.nav,docs:!S.nav.docs}}),
+      secBoardsHeader:secBase, secDecHeader:secBase, secDocsHeader:secBase,
+      chevBoards:chev(S.nav.boards), chevDec:chev(S.nav.decisions), chevDocs:chev(S.nav.docs),
+      boardRows, decisionRows, docsTree,
+      columns, agentChips,
+      query:S.query, onSearch:(e)=>this.setState({query:e.target.value}),
+      addText:S.addText, onAddInput:(e)=>this.setState({addText:e.target.value}), onAddCancel:()=>this.setState({addingCol:null,addText:''}),
+      addList:()=>{},
+      setAdrNode:(n)=>{ this.adrNode=n; if(n) this.renderAdr(); },
+      decCrumb: curAdr?('.backlog/adr/'+curAdr.file):'', docsCrumb: cd?(cd.path||''):'', setDocsNode:(n)=>{ this.docsNode=n; if(n) this.renderDocs(); },
+      modalOpen:!!modal, modal:modal||{}, closeModal:()=>this.setState({openCardId:null}), stop:(e)=>e.stopPropagation(),
+      liveCount, totalCards,
+    };
+  }
+}
+</script>
+</body>
+</html>
