@@ -92,6 +92,11 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
   };
 
   context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('repodoc.readingWidth')) {
+        MarkdownPanel.refreshAll();
+      }
+    }),
     store.onDidChange(() => {
       updateInitializedContext();
       refreshTrees();

@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.8] — 2026-07-17
+
+- The Docs/Decision reading column is wider by default and configurable: `repodoc.readingWidth` — `normal` (760px), `wide` (1100px, default), or `full` (entire editor width). Changing the setting re-renders open views live.
+
 ## [0.3.7] — 2026-07-17
 
 - Cards now stand off the column surface in every theme: the card background is derived as an elevation tint above the column colour (with a stronger border), instead of relying on two theme tokens that can resolve to near-identical colours in dark themes.

@@ -196,7 +196,7 @@ export class MarkdownPanel {
       </div>
     </div>
     <div class="content">
-      <div class="reading-column">
+      <div class="reading-column width-${readingWidth()}">
         <div class="filecrumb">${escapeHtml(fileCrumb)}</div>
         <div class="adr-md">${bodyHtml}</div>
       </div>
@@ -239,4 +239,10 @@ function frontmatterTable(data: Record<string, unknown>): string {
     return '';
   }
   return `<table class="fm-table"><tbody>${rows}</tbody></table>`;
+}
+
+/** The configured reading-column width: 'normal' | 'wide' | 'full'. */
+function readingWidth(): string {
+  const value = vscode.workspace.getConfiguration('repodoc').get<string>('readingWidth');
+  return value === 'normal' || value === 'full' ? value : 'wide';
 }
