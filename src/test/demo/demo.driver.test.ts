@@ -52,6 +52,14 @@ suite('RepoDoc demo driver', () => {
     assert.strictEqual(opened, true, 'board panel should be open');
     await phase('card', 1200);
 
+    // Gates + comments journal on the review card.
+    await vscode.commands.executeCommand(
+      'repodoc.openCard',
+      'project-backlog',
+      'v2-search-endpoint',
+    );
+    await phase('journal', 1200);
+
     await vscode.commands.executeCommand(
       'repodoc.openDecision',
       '01-record-architecture-decisions',
