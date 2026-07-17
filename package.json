@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {
@@ -165,6 +165,11 @@
           ],
           "default": "wide",
           "description": "Width of the reading column in the rendered Docs and Decision views."
+        },
+        "repodoc.plantUmlServer": {
+          "type": "string",
+          "default": "https://www.plantuml.com/plantuml",
+          "markdownDescription": "PlantUML server used to render ```plantuml fences in Docs and Decisions (diagram source is sent to this server). Point it at a self-hosted instance for private diagrams, or set it empty to show PlantUML fences as plain code."
         }
       }
     }
@@ -184,7 +189,9 @@
     "test": "vscode-test"
   },
   "dependencies": {
-    "marked": "^15.0.7"
+    "marked": "^15.0.7",
+    "mermaid": "^11.16.0",
+    "plantuml-encoder": "^1.4.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

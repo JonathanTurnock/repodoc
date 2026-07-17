@@ -37,3 +37,23 @@ are files under `decisions/`, docs are a tree under `docs/`. File watchers in th
 extension call `notifyExternalChange()` on the store when those files change on
 disk — so an edit made by an agent (or by you in another editor) shows up in the
 board and views live. See [Decision 02](../../decisions/02-store-project-data-as-files.md).
+
+## At a glance
+
+```mermaid
+graph LR
+  subgraph host [VS Code host]
+    EXT[extension.ts] --> TREES[Native tree views]
+    EXT --> PANELS[Webview panels]
+  end
+  subgraph core [vscode-free core]
+    STORE[RepoDocStore] --> GATES[gates.ts]
+    STORE --> PARSE[cardParse / frontmatter]
+  end
+  PANELS --> STORE
+  TREES --> STORE
+  STORE --> PORT[(FileSystemPort)]
+  PORT --> NODE[Node adapter]
+  PORT --> MEM[In-memory adapter]
+  NODE --> REPO[(boards/ decisions/ docs/)]
+```

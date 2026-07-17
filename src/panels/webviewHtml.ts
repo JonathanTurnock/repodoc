@@ -33,6 +33,8 @@ export interface BuildWebviewHtmlOptions {
   stylesheets: string[];
   /** Optional media-relative script to load with a generated nonce. */
   scriptFileName?: string;
+  /** Additional media-relative scripts, loaded (in order) with the same nonce. */
+  extraScripts?: string[];
   /** Extra img-src tokens appended after the webview csp source (e.g. `https:`, `data:`). */
   extraImgSrc?: string[];
 }
@@ -43,10 +45,20 @@ export interface BuildWebviewHtmlOptions {
  * so the CSP and skeleton live in one place.
  */
 export function buildWebviewHtml(options: BuildWebviewHtmlOptions): string {
-  const { webview, extensionUri, title, bodyHtml, stylesheets, scriptFileName, extraImgSrc } =
+  const {
+    webview,
+    extensionUri,
+    title,
+    bodyHtml,
+    stylesheets,
+    scriptFileName,
+    extraScripts,
+    extraImgSrc,
+  } =
     options;
   const cspSource = webview.cspSource;
-  const nonce = scriptFileName ? getNonce() : undefined;
+  const allScripts = [...(scriptFileName ? [scriptFileName] : []), ...(extraScripts ?? [])];
+  const nonce = allScripts.length > 0 ? getNonce() : undefined;
 
   const mediaUri = (fileName: string): vscode.Uri =>
     webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', fileName));
@@ -67,8 +79,10 @@ export function buildWebviewHtml(options: BuildWebviewHtmlOptions): string {
     .join('\n');
 
   const scriptTag =
-    scriptFileName && nonce
-      ? `\n  <script nonce="${nonce}" src="${mediaUri(scriptFileName)}"></script>`
+    allScripts.length > 0 && nonce
+      ? allScripts
+          .map((f) => `\n  <script nonce="${nonce}" src="${mediaUri(f)}"></script>`)
+          .join('')
       : '';
 
   return `<!DOCTYPE html>

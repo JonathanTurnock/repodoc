@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.9] — 2026-07-17
+
+- **Diagrams in Docs and Decisions** — ```mermaid fences render natively (mermaid is bundled with the extension, theme-aware, no CDN), and ```plantuml / ```puml fences render through a configurable server (`repodoc.plantUmlServer`, defaults to the public plantuml.com; point it at a self-hosted instance for private diagrams or clear it to disable).
+
 ## [0.3.8] — 2026-07-17
 
 - The Docs/Decision reading column is wider by default and configurable: `repodoc.readingWidth` — `normal` (760px), `wide` (1100px, default), or `full` (entire editor width). Changing the setting re-renders open views live.

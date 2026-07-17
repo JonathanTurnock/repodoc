@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { marked } from 'marked';
+import { renderMarkdownWithDiagrams } from './diagrams';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml, escapeHtml } from './webviewHtml';
 
@@ -116,7 +116,8 @@ export class MarkdownPanel {
     extensionUri: vscode.Uri,
   ): vscode.WebviewPanelOptions & vscode.WebviewOptions {
     return {
-      enableScripts: false,
+      // Scripts stay nonce-gated by the CSP; needed for mermaid rendering.
+      enableScripts: true,
       retainContextWhenHidden: true,
       localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'media')],
     };
@@ -138,7 +139,10 @@ export class MarkdownPanel {
     }
     // Frontmatter renders as a meta table between the title and the record.
     const meta = frontmatterTable(decision.frontmatter ?? { status: decision.status });
-    let bodyHtml = marked.parse(decision.body) as string;
+    const rendered = renderMarkdownWithDiagrams(decision.body, {
+      plantUmlServer: plantUmlServer(),
+    });
+    let bodyHtml = rendered.html;
     const headingEnd = bodyHtml.indexOf('</h1>');
     bodyHtml =
       headingEnd === -1
@@ -154,6 +158,7 @@ export class MarkdownPanel {
       decision.title,
       fileCrumb,
       bodyHtml,
+      rendered.hasMermaid,
     );
   }
 
@@ -164,7 +169,8 @@ export class MarkdownPanel {
       return;
     }
     const meta = doc.frontmatter ? frontmatterTable(doc.frontmatter) : '';
-    let bodyHtml = marked.parse(doc.body) as string;
+    const rendered = renderMarkdownWithDiagrams(doc.body, { plantUmlServer: plantUmlServer() });
+    let bodyHtml = rendered.html;
     if (meta) {
       const headingEnd = bodyHtml.indexOf('</h1>');
       bodyHtml =
@@ -178,6 +184,7 @@ export class MarkdownPanel {
       doc.title,
       this.state.target,
       bodyHtml,
+      rendered.hasMermaid,
     );
   }
 
@@ -186,6 +193,7 @@ export class MarkdownPanel {
     leaf: string,
     fileCrumb: string,
     bodyHtml: string,
+    hasMermaid = false,
   ): string {
     const body = `  <div class="page">
     <div class="topbar">
@@ -209,6 +217,7 @@ export class MarkdownPanel {
       title: leaf,
       bodyHtml: body,
       stylesheets: ['base.css', 'markdown.css'],
+      extraScripts: hasMermaid ? ['mermaid.min.js', 'mermaid-init.js'] : undefined,
       extraImgSrc: ['https:', 'data:'],
     });
   }
@@ -245,4 +254,9 @@ function frontmatterTable(data: Record<string, unknown>): string {
 function readingWidth(): string {
   const value = vscode.workspace.getConfiguration('repodoc').get<string>('readingWidth');
   return value === 'normal' || value === 'full' ? value : 'wide';
+}
+
+/** The configured PlantUML server URL ('' disables PlantUML rendering). */
+function plantUmlServer(): string {
+  return vscode.workspace.getConfiguration('repodoc').get<string>('plantUmlServer') ?? '';
 }

@@ -1,4 +1,5 @@
 const esbuild = require('esbuild');
+const fs = require('fs');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
@@ -37,6 +38,8 @@ async function main() {
     logLevel: 'silent',
     plugins: [esbuildProblemMatcherPlugin],
   });
+  // The reading views load mermaid from media/ (bundled, no CDN).
+  fs.copyFileSync('node_modules/mermaid/dist/mermaid.min.js', 'media/mermaid.min.js');
   if (watch) {
     await ctx.watch();
   } else {
