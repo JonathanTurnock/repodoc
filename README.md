@@ -1,36 +1,30 @@
-# RepoDoc — run your project from inside the repo
+# RepoDoc
 
-**Be the PM and tech lead of your codebase while coding agents do the work.** RepoDoc gives VS Code a kanban board, decision records, and a documentation site — all stored as plain markdown and JSON in your repository, so the agents working in your repo can pick up tickets, report live progress, record decisions, and keep the docs current. You review, prioritize, and steer.
+Task boards, decision records, and documentation for VS Code, stored as plain files in your repository.
 
-![RepoDoc — boards, cards, decisions, and docs](images/repodoc.gif)
+![RepoDoc boards, cards, decisions, and docs](images/repodoc.gif)
 
-## Why files in the repo?
+## Everything lives in the repository
 
-Because that's where your agents already are. There's no server, no account, no sync — a card is a markdown file, a decision is a markdown file, the board is a folder. Anything that can edit files (Claude Code, Cursor, Copilot, or you with `vim`) can move work forward, and every change is versioned with the code it describes.
-
-- **Diffable & reviewable** — planning changes show up in pull requests.
-- **Agent-native** — moving work forward is just editing a file your agent already sees.
-- **Portable** — clone the repo, get the whole project brain.
-
-## Native to your editor
-
-RepoDoc looks and feels like part of VS Code, not an app in a webview. Navigation is native tree views — every board expands to its columns and cards, so any card is one click away — and every surface follows your color theme, light, dark, or custom:
-
-![The same board in a light theme](images/light.png)
+A card is a markdown file. A decision is a markdown file. A board is a folder with a JSON config. Project state is versioned with the code it describes, shows up in diffs and pull requests, and travels with every clone. There is no server and no account.
 
 ## The board
 
-Trello-style columns with drag & drop, WIP limits, labels, priorities, and search. A card being actively worked shows a **live status line and progress bar**.
+Columns with drag and drop, WIP limits, labels, priorities, and search. Cards show a checklist count, comment count, progress, and custom field chips. The board updates when the files change on disk.
 
-![Kanban board with live agent progress](images/board.png)
+![Kanban board](images/board.png)
 
-Click a card for the full picture — priority, live agent status, description, and checklist:
+Open a card to edit its fields, tick its checklist, read its description as rendered markdown, and follow its comment history. File references in comments, such as `src/core/store.ts:123`, open that file at that line.
 
-![Card detail with checklist](images/card.png)
+![Card detail](images/card.png)
 
-## Workflows with gates
+## Custom fields
 
-Columns can declare **enter/exit gates** — conditions a card must satisfy to move. A gate is one of two kinds: a **script** gate requires a command to have run green (the agent records the evidence in the card's `## Gates` section), or a **field** gate checks a card field live via a small `check` syntax (`= v`, `>= n`, `contains v`, `match <re>`, …). Approvals are just field gates — a reviewer sets a field the gate checks.
+Boards define typed fields in their config: text, number, boolean, date, select, and multiselect. Values are stored in each card's frontmatter and edited in the card view. Fields marked `showOnCard` appear as chips on the card.
+
+## Workflow gates
+
+Columns can declare conditions for cards entering or leaving. A script gate requires a recorded green run of a command. A field gate checks a card field against an expression such as `= true`, `>= 3`, or `contains core`. A move that fails a gate is blocked with the reasons listed; choosing to override records the override in the card file.
 
 ```json
 "enter": [
@@ -39,57 +33,49 @@ Columns can declare **enter/exit gates** — conditions a card must satisfy to m
 ]
 ```
 
-On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until the `peer-reviewed` field is checked. The process lives in config, so it shows up in diffs and is honored by the agents editing the files. Gate status, custom fields, and the agent's **work journal** — with one-click `path:line` links into the code — all live on the card:
-
-![Card with gates, fields, and the agent journal](images/journal.png)
+![Card with gates and comment history](images/journal.png)
 
 ## Decision records
 
-Capture the *why* behind architectural choices as numbered markdown records with a status lifecycle (Proposed → Accepted → Superseded). Agents read them before touching related code.
+Numbered markdown records with status and date in frontmatter. The sidebar lists them with status colors, and each record opens in a reading view.
 
 ![A rendered decision record](images/decision.png)
 
-## Docs
+## Documentation
 
-A Docusaurus-style handbook rendered from your `docs/` tree. Add a folder, drop in a `.md` file, and it shows up in the sidebar — numeric prefixes control the order. Pages render YAML frontmatter as a meta table, ```mermaid fences as native diagrams, and ```plantuml fences via a configurable renderer — ```plantuml fences render via `repodoc.plantUmlServer` (default: the public plantuml.com). For private diagrams, run your own renderer — `docker run -d --name plantuml -p 8792:8080 plantuml/plantuml-server:jetty` — and point the setting at `http://localhost:8792`.
+The `docs/` tree renders as a handbook. Numeric filename prefixes set the sidebar order. Frontmatter renders as a table under the title. Mermaid fences render as diagrams with no network calls. PlantUML fences render through a configurable server.
 
 ![Rendered documentation page](images/docs.png)
 
+## Native to VS Code
+
+Navigation uses standard tree views: boards expand into columns and cards, and decisions and docs open in one click. Every surface follows your color theme.
+
+![The same board in a light theme](images/light.png)
+
 ## Getting started
 
-1. Install RepoDoc and open your repository.
-2. Click the RepoDoc icon in the activity bar and hit **Initialize RepoDoc** — it creates a starter board config. Your cards, decisions, and docs are yours to add.
-3. Open the board, add cards, and point your coding agent at the repo.
+1. Install RepoDoc and open a repository.
+2. Click the RepoDoc icon in the activity bar and run **Initialize RepoDoc**. This creates one file, the starter board config.
+3. Add cards from the board, or create markdown files under `boards/`.
 
-Everything lives in four places:
+## File layout
 
 | Path | Contents |
 | --- | --- |
-| `boards/<board-id>/NN-slug.md` | One card per file — frontmatter holds column, labels, priority, live status |
-| `boards/<board-id>/.config.json` | Board name, columns (with WIP limits and gates), labels, custom fields |
-| `decisions/NN-slug.md` | Decision records — frontmatter `status:` and `date:` |
-| `docs/NN-slug.md` | Documentation tree (numeric prefix orders the sidebar) |
+| `boards/<board-id>/NN-slug.md` | One card per file. Frontmatter holds column, labels, priority, and field values |
+| `boards/<board-id>/.config.json` | Board name, columns, WIP limits, labels, fields, gates |
+| `decisions/NN-slug.md` | Decision records with `status:` and `date:` frontmatter |
+| `docs/NN-slug.md` | Documentation tree, ordered by numeric prefix |
 
-## Working with agents
+## Settings
 
-Tell your agent the conventions once (or drop them in your agent instructions file):
-
-- Pick up a card by setting `column: doing` in its frontmatter and noting who you are in its `## Comments` journal — there is no assignee field.
-- Report progress with `live: true`, `status: <one-liner>`, `progress: 0-100`.
-- Tick checklist items (`- [x]`) as you complete them.
-- Set any **custom fields** the board defines (e.g. `release: v0.2.0`, `estimate: 5`) as flat frontmatter keys.
-- Journal your work in the card's `## Comments` section — one entry per meaningful step (`- **<you>** (<ISO>): <what and why>`), citing the code you touched as `path:line` (e.g. `src/core/store.ts:123`). RepoDoc turns those into one-click links that open the file at that range.
-- Made a significant choice? Add the next `decisions/NN-*.md` and link it from the card.
-
-RepoDoc watches the files and updates the board live.
-
-### Teach your agent (skill files)
-
-Run **RepoDoc: Install Agent Skill** from the command palette to drop a `repodoc-workflow` skill into `.claude/skills/` (Claude Code) or `.opencode/skill/` (OpenCode). It teaches the agent the whole workflow above — claiming cards, reporting live progress, recording decisions, and keeping docs current. Installed skill files are managed: when RepoDoc ships a newer version, the extension shows a notice with an **Update** button — nothing is rewritten without your say-so (updating replaces any local edits).
+- `repodoc.readingWidth` sets the width of reading views and the card view: narrow, wide, or full.
+- `repodoc.plantUmlServer` sets the PlantUML renderer. The default is the public plantuml.com server. To render privately, run `docker run -d --name plantuml -p 8792:8080 plantuml/plantuml-server:jetty` and set the value to `http://localhost:8792`.
 
 ## Development
 
-`npm install`, then `F5` for an Extension Development Host. `npm run compile` type-checks, lints, and bundles; `npm test` runs the unit suite (on an in-memory filesystem) and the e2e suite (driving the real extension). Releases are cut by tagging `v*` — CI packages the VSIX and attaches it to the GitHub release.
+Run `npm install`, then press `F5` for an Extension Development Host. `npm run compile` type-checks, lints, and bundles. `npm test` runs the unit suite and the end-to-end suite. Pushing a `v*` tag builds the VSIX and attaches it to a GitHub release.
 
 ## License
 

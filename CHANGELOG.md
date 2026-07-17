@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.6.3] — 2026-07-17
+
+- Rewrote the README and Marketplace description in a plain, neutral voice focused on the core value: in-repository task management that travels with the code.
+
 ## [0.6.2] — 2026-07-17
 
 - Simplified PlantUML configuration back to a single setting: `repodoc.plantUmlServer`. The managed-Docker renderer mode, its settings, commands, and status-bar indicator are removed; the setting's description now shows the one-line `docker run` command for self-hosting a private renderer and the URL to set (`http://localhost:8792`).
