@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { renderMarkdownWithDiagrams } from './diagrams';
-import { PlantUmlDocker } from './plantUmlDocker';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml, escapeHtml } from './webviewHtml';
 
@@ -20,22 +19,6 @@ interface PanelState {
 export class MarkdownPanel {
   private static decisionPanel: MarkdownPanel | undefined;
   private static docPanel: MarkdownPanel | undefined;
-  private static dockerInstance: PlantUmlDocker | undefined;
-
-  /** Shared managed-container handle (recreated when settings change). */
-  public static plantUmlDocker(): PlantUmlDocker {
-    const config = vscode.workspace.getConfiguration('repodoc');
-    const rawImage = (config.get<string>('plantUmlDockerImage') ?? '').trim();
-    const image = rawImage || 'plantuml/plantuml-server:jetty';
-    const rawPort = Number(config.get<number>('plantUmlDockerPort'));
-    const port =
-      Number.isInteger(rawPort) && rawPort >= 1 && rawPort <= 65535 ? rawPort : 8792;
-    const current = MarkdownPanel.dockerInstance;
-    if (!current || current.localUrl() !== `http://localhost:${port}`) {
-      MarkdownPanel.dockerInstance = new PlantUmlDocker(image, port);
-    }
-    return MarkdownPanel.dockerInstance!;
-  }
 
   private readonly panel: vscode.WebviewPanel;
   private readonly extensionUri: vscode.Uri;
@@ -276,24 +259,7 @@ function readingWidth(): string {
   return value === 'full' ? 'full' : 'wide';
 }
 
-/**
- * The active PlantUML renderer URL. Docker mode wins: the managed local
- * container's URL is used (kicking off a lazy start + re-render when it is
- * not up yet); otherwise the configured server ('' disables rendering).
- */
+/** The configured PlantUML server URL ('' disables PlantUML rendering). */
 function plantUmlServer(): string {
-  const config = vscode.workspace.getConfiguration('repodoc');
-  if (config.get<string>('plantUmlRenderer') === 'docker') {
-    const docker = MarkdownPanel.plantUmlDocker();
-    void docker.ensureStarted().then((up) => {
-      if (up && !dockerReady) {
-        dockerReady = true;
-        MarkdownPanel.refreshAll(); // reload the now-renderable images
-      }
-    });
-    return docker.localUrl();
-  }
-  return config.get<string>('plantUmlServer') ?? '';
+  return vscode.workspace.getConfiguration('repodoc').get<string>('plantUmlServer') ?? '';
 }
-
-let dockerReady = false;

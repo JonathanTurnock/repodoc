@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {
@@ -108,25 +108,10 @@
         "category": "RepoDoc"
       },
       {
-        "command": "repodoc.plantUmlStart",
-        "title": "Start PlantUML Renderer (Docker)",
-        "category": "RepoDoc"
-      },
-      {
-        "command": "repodoc.plantUmlStop",
-        "title": "Stop PlantUML Renderer (Docker)",
-        "category": "RepoDoc"
-      },
-      {
         "command": "repodoc.openSettings",
         "title": "RepoDoc Settings",
         "category": "RepoDoc",
         "icon": "$(gear)"
-      },
-      {
-        "command": "repodoc.plantUmlMenu",
-        "title": "Manage PlantUML Renderer",
-        "category": "RepoDoc"
       }
     ],
     "menus": {
@@ -192,33 +177,10 @@
           "default": "wide",
           "description": "Width of RepoDoc's reading surfaces \u2014 the rendered Docs/Decision views and the card modal."
         },
-        "repodoc.plantUmlRenderer": {
-          "type": "string",
-          "enum": [
-            "server",
-            "docker"
-          ],
-          "enumDescriptions": [
-            "Render via a PlantUML server URL (defaults to the public plantuml.com \u2014 diagram source is sent to it)",
-            "Render via a local Docker container managed by the extension \u2014 nothing leaves your machine"
-          ],
-          "default": "server",
-          "description": "How ```plantuml fences are rendered in Docs and Decisions."
-        },
         "repodoc.plantUmlServer": {
           "type": "string",
           "default": "https://www.plantuml.com/plantuml",
-          "markdownDescription": "PlantUML server used to render ```plantuml fences in Docs and Decisions (diagram source is sent to this server). Point it at a self-hosted instance for private diagrams, or set it empty to show PlantUML fences as plain code."
-        },
-        "repodoc.plantUmlDockerImage": {
-          "type": "string",
-          "default": "plantuml/plantuml-server:jetty",
-          "description": "Docker image used for the local PlantUML renderer."
-        },
-        "repodoc.plantUmlDockerPort": {
-          "type": "number",
-          "default": 8792,
-          "description": "Local port the managed PlantUML container listens on."
+          "markdownDescription": "PlantUML server used to render ```plantuml fences in Docs and Decisions. The default is the public plantuml.com server \u2014 **diagram source is sent to it**. To keep diagrams private, run your own local renderer with Docker:\n\n```\ndocker run -d --name plantuml -p 8792:8080 plantuml/plantuml-server:jetty\n```\n\nthen set this to `http://localhost:8792`. Leave empty to show PlantUML fences as plain code."
         }
       }
     }

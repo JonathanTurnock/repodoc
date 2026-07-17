@@ -7,7 +7,6 @@ import { SystemClock } from './adapters/systemClock';
 import { BoardsTreeProvider, DecisionsTreeProvider, DocsTreeProvider } from './trees';
 import { BoardPanel } from './panels/boardPanel';
 import { MarkdownPanel } from './panels/markdownPanel';
-import { PlantUmlStatus } from './panels/plantUmlStatus';
 
 /** Public surface returned by {@link activate}, used by e2e tests. */
 export interface RepoDocApi {
@@ -92,20 +91,11 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
     docsTree.refresh();
   };
 
-  const plantUmlStatus = new PlantUmlStatus();
-  context.subscriptions.push(plantUmlStatus);
-  void plantUmlStatus.refresh();
-
   context.subscriptions.push(
-    vscode.commands.registerCommand('repodoc.plantUmlMenu', () => plantUmlStatus.menu()),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('repodoc.plantUmlRenderer')) {
-        void enforceDockerRendererValidity(plantUmlStatus);
-      }
       if (e.affectsConfiguration('repodoc')) {
         MarkdownPanel.refreshAll();
         BoardPanel.refreshAll();
-        void plantUmlStatus.refresh();
       }
     }),
     store.onDidChange(() => {
@@ -214,33 +204,6 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
       }
     }),
 
-    vscode.commands.registerCommand('repodoc.plantUmlStart', async () => {
-      const docker = MarkdownPanel.plantUmlDocker();
-      if (!(await docker.dockerAvailable())) {
-        void vscode.window.showWarningMessage(
-          'RepoDoc: Docker is not available — install/start Docker to run the local PlantUML renderer.',
-        );
-        return;
-      }
-      void vscode.window.showInformationMessage('RepoDoc: starting the PlantUML renderer…');
-      const up = await docker.ensureStarted();
-      void vscode.window.showInformationMessage(
-        up
-          ? `RepoDoc: PlantUML renderer running at ${docker.localUrl()}`
-          : 'RepoDoc: the PlantUML container failed to start (see Docker logs).',
-      );
-      MarkdownPanel.refreshAll();
-      void plantUmlStatus.refresh();
-    }),
-
-    vscode.commands.registerCommand('repodoc.plantUmlStop', async () => {
-      const stopped = await MarkdownPanel.plantUmlDocker().stop();
-      void vscode.window.showInformationMessage(
-        stopped ? 'RepoDoc: PlantUML renderer stopped.' : 'RepoDoc: no PlantUML container to stop.',
-      );
-      void plantUmlStatus.refresh();
-    }),
-
     vscode.commands.registerCommand('repodoc.installAgentSkill', async () => {
       if (!root) {
         void vscode.window.showWarningMessage(
@@ -276,29 +239,4 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
   return { store };
 }
 
-/**
- * Selecting the docker renderer must leave a VALID configuration: if Docker is
- * not available the setting is reverted to `server` with a warning, so the
- * user is never silently stuck with a renderer that cannot run.
- */
-async function enforceDockerRendererValidity(status: PlantUmlStatus): Promise<void> {
-  const config = vscode.workspace.getConfiguration('repodoc');
-  if (config.get<string>('plantUmlRenderer') !== 'docker') {
-    return;
-  }
-  const docker = MarkdownPanel.plantUmlDocker();
-  if (await docker.dockerAvailable()) {
-    return;
-  }
-  await config.update('plantUmlRenderer', 'server', vscode.ConfigurationTarget.Global);
-  void vscode.window.showWarningMessage(
-    'RepoDoc: Docker is not available, so the PlantUML renderer was reverted to "server". ' +
-      'Install/start Docker and select docker again.',
-  );
-  void status.refresh();
-}
-
-export function deactivate(): void {
-  // Best-effort: tear down a PlantUML container this session started.
-  MarkdownPanel.plantUmlDocker().stopIfStartedByUs();
-}
+export function deactivate(): void {}

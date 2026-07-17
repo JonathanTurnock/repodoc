@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.6.2] — 2026-07-17
+
+- Simplified PlantUML configuration back to a single setting: `repodoc.plantUmlServer`. The managed-Docker renderer mode, its settings, commands, and status-bar indicator are removed; the setting's description now shows the one-line `docker run` command for self-hosting a private renderer and the URL to set (`http://localhost:8792`).
+
 ## [0.6.1] — 2026-07-17
 
 - Selecting the `docker` PlantUML renderer now enforces a valid configuration: if Docker is unavailable the setting reverts to `server` with a warning, and invalid image/port values fall back to safe defaults.

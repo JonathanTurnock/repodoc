@@ -1,6 +1,5 @@
 import * as assert from 'assert';
 import { renderMarkdownWithDiagrams } from '../../panels/diagrams';
-import { CONTAINER_NAME, dockerRunArgs } from '../../panels/plantUmlDocker';
 
 suite('renderMarkdownWithDiagrams', () => {
   test('mermaid fences become pre.mermaid blocks and set hasMermaid', () => {
@@ -38,10 +37,3 @@ suite('renderMarkdownWithDiagrams', () => {
   });
 });
 
-suite('plantUmlDocker helpers', () => {
-  test('dockerRunArgs builds a named, removable, port-mapped container', () => {
-    assert.deepStrictEqual(dockerRunArgs('plantuml/plantuml-server:jetty', 8792), [
-      'run', '-d', '--rm', '--name', CONTAINER_NAME, '-p', '8792:8080', 'plantuml/plantuml-server:jetty',
-    ]);
-  });
-});
