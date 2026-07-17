@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.4] — 2026-07-17
+
+- Added the extension icon (kanban columns on the dark panel, in the board's column colours) shown in the Marketplace and the extensions view.
+
 ## [0.3.3] — 2026-07-17
 
 - Board overflow is discoverable: a plain mouse wheel now scrolls the board horizontally (column card lists still scroll vertically when they can), and the horizontal scrollbar is always visible.
