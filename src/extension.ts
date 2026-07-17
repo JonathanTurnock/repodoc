@@ -95,6 +95,7 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('repodoc')) {
         MarkdownPanel.refreshAll();
+        BoardPanel.refreshAll();
       }
     }),
     store.onDidChange(() => {

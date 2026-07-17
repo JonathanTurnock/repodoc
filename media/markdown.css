@@ -29,7 +29,7 @@
   margin: 0 auto;
   padding: 46px 56px 90px;
 }
-.reading-column.width-normal {
+.reading-column.width-narrow {
   max-width: 760px;
 }
 .reading-column.width-wide {

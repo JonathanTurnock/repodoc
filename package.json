@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {
@@ -164,17 +164,17 @@
         "repodoc.readingWidth": {
           "type": "string",
           "enum": [
-            "normal",
+            "narrow",
             "wide",
             "full"
           ],
           "enumDescriptions": [
-            "A compact 760px reading column",
-            "A roomier 1100px reading column",
+            "A compact 760px reading column (640px card modal)",
+            "A roomier 1100px reading column (900px card modal)",
             "Use the full editor width"
           ],
           "default": "wide",
-          "description": "Width of the reading column in the rendered Docs and Decision views."
+          "description": "Width of RepoDoc's reading surfaces \u2014 the rendered Docs/Decision views and the card modal."
         },
         "repodoc.plantUmlRenderer": {
           "type": "string",

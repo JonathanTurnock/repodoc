@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.5.1] — 2026-07-17
+
+- `repodoc.readingWidth` now governs ALL reading surfaces — the card modal follows it too (640px narrow / 900px wide / near-full). The options are renamed **narrow** | **wide** | **full** (a stored legacy `normal` still reads as narrow), and changes apply live to open boards and reading views.
+
 ## [0.5.0] — 2026-07-17
 
 - **Bootstrap is config-only** — *Initialize RepoDoc* now creates just the starter board config (`boards/project-backlog/.config.json`); it never seeds cards, decisions, or docs, so initializing an existing repo can't touch your content.

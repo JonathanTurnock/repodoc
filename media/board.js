@@ -1237,7 +1237,7 @@
     var panel = h(
       'div',
       {
-        class: 'modal',
+        class: 'modal width-' + ((state.data && state.data.readingWidth) || 'wide'),
         onClick: function (e) {
           e.stopPropagation();
         },

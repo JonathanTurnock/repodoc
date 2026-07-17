@@ -267,7 +267,10 @@ function frontmatterTable(data: Record<string, unknown>): string {
 /** The configured reading-column width: 'normal' | 'wide' | 'full'. */
 function readingWidth(): string {
   const value = vscode.workspace.getConfiguration('repodoc').get<string>('readingWidth');
-  return value === 'normal' || value === 'full' ? value : 'wide';
+  if (value === 'narrow' || value === 'normal') {
+    return 'narrow';
+  }
+  return value === 'full' ? 'full' : 'wide';
 }
 
 /**

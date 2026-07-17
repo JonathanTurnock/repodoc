@@ -147,6 +147,7 @@ export class BoardPanel {
       config,
       boardPath: this.store.displayPath(this.boardId),
       descHtml,
+      readingWidth: readingWidth(),
     };
     void this.panel.webview.postMessage(message);
   }
@@ -341,4 +342,13 @@ export class BoardPanel {
       scriptFileName: 'board.js',
     });
   }
+}
+
+/** The configured reading width ('narrow' | 'wide' | 'full'; legacy 'normal' = narrow). */
+function readingWidth(): string {
+  const value = vscode.workspace.getConfiguration('repodoc').get<string>('readingWidth');
+  if (value === 'narrow' || value === 'normal') {
+    return 'narrow';
+  }
+  return value === 'full' ? 'full' : 'wide';
 }

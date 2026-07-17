@@ -23,6 +23,8 @@ export interface DataMessage {
   boardPath: string;
   /** Card descriptions rendered to HTML (markdown, host-side), keyed by card id. */
   descHtml: Record<string, string>;
+  /** Configured reading width: 'narrow' | 'wide' | 'full' (sizes the modal). */
+  readingWidth: string;
 }
 
 

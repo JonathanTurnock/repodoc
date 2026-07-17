@@ -440,6 +440,14 @@ input::placeholder {
 .modal {
   width: 640px;
   max-width: 100%;
+}
+.modal.width-wide {
+  width: 900px;
+}
+.modal.width-full {
+  width: min(96vw, 1400px);
+}
+.modal {
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-widget-border);
   border-radius: 14px;
