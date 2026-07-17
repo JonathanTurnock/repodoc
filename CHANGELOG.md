@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.7] — 2026-07-17
+
+- Cards now stand off the column surface in every theme: the card background is derived as an elevation tint above the column colour (with a stronger border), instead of relying on two theme tokens that can resolve to near-identical colours in dark themes.
+
 ## [0.3.6] — 2026-07-17
 
 - Card descriptions render as markdown in the card modal (host-rendered with the same pipeline as the docs/decision views): paragraphs, lists, links, inline code, code blocks, and blockquotes, all theme-styled.

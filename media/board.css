@@ -170,16 +170,19 @@ input::placeholder {
 
 /* ---- Card ---- */
 .card {
-  background: var(--vscode-editorWidget-background);
-  border: 1px solid var(--vscode-widget-border);
+  /* Derived elevation above the column surface — a foreground tint guarantees
+     visible contrast in any theme, unlike pairing two theme tokens that may
+     resolve to near-identical colours (e.g. Dark Modern). */
+  background: color-mix(in srgb, var(--vscode-foreground) 6%, var(--vscode-sideBar-background));
+  border: 1px solid color-mix(in srgb, var(--vscode-foreground) 14%, transparent);
   border-radius: 10px;
   padding: 11px 12px;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
 .card:hover {
-  border-color: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
-  background: var(--vscode-list-hoverBackground);
+  border-color: color-mix(in srgb, var(--vscode-foreground) 26%, transparent);
+  background: color-mix(in srgb, var(--vscode-foreground) 9%, var(--vscode-sideBar-background));
 }
 .card.dragging {
   opacity: 0.4;
