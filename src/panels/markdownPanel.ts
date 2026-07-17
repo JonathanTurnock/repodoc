@@ -277,7 +277,7 @@ function readingWidth(): string {
  */
 function plantUmlServer(): string {
   const config = vscode.workspace.getConfiguration('repodoc');
-  if (config.get<boolean>('plantUmlDocker')) {
+  if (config.get<string>('plantUmlRenderer') === 'docker') {
     const docker = MarkdownPanel.plantUmlDocker();
     void docker.ensureStarted().then((up) => {
       if (up && !dockerReady) {

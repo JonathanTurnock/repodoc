@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {
@@ -176,15 +176,23 @@
           "default": "wide",
           "description": "Width of the reading column in the rendered Docs and Decision views."
         },
+        "repodoc.plantUmlRenderer": {
+          "type": "string",
+          "enum": [
+            "server",
+            "docker"
+          ],
+          "enumDescriptions": [
+            "Render via a PlantUML server URL (defaults to the public plantuml.com \u2014 diagram source is sent to it)",
+            "Render via a local Docker container managed by the extension \u2014 nothing leaves your machine"
+          ],
+          "default": "server",
+          "description": "How ```plantuml fences are rendered in Docs and Decisions."
+        },
         "repodoc.plantUmlServer": {
           "type": "string",
           "default": "https://www.plantuml.com/plantuml",
           "markdownDescription": "PlantUML server used to render ```plantuml fences in Docs and Decisions (diagram source is sent to this server). Point it at a self-hosted instance for private diagrams, or set it empty to show PlantUML fences as plain code."
-        },
-        "repodoc.plantUmlDocker": {
-          "type": "boolean",
-          "default": false,
-          "markdownDescription": "Render PlantUML through a **local Docker container** (`repodoc-plantuml`) managed by the extension, instead of the configured server \u2014 no diagram source leaves the machine. Requires Docker. The container starts on demand and stops when VS Code closes (or via *RepoDoc: Stop PlantUML Renderer*)."
         },
         "repodoc.plantUmlDockerImage": {
           "type": "string",
