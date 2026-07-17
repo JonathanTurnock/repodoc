@@ -34,3 +34,17 @@ export function numPrefix(name: string): number | undefined {
 export function pad(n: number, width: number): string {
   return String(n).padStart(width, '0');
 }
+
+/** Card/doc slug from a file name: drops the `.md` extension and `NN-` prefix. */
+export function slugFromFileName(name: string): string {
+  return stripNumPrefix(name.replace(/\.md$/i, ''));
+}
+
+/**
+ * The display title of a markdown document: its first `# ` heading, or a
+ * title-cased fallback name when the content has no heading.
+ */
+export function markdownTitle(content: string, fallbackName: string): string {
+  const headingMatch = /^#\s+(.+)$/m.exec(content);
+  return headingMatch ? headingMatch[1].trim() : titleCase(fallbackName);
+}

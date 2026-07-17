@@ -1,4 +1,6 @@
-/* RepoDoc — rendered Decision (ADR) & Docs markdown views. */
+/* RepoDoc — rendered Decision (ADR) & Docs markdown views.
+   Shared base rules (fonts, scrollbar, top-bar breadcrumb) live in base.css,
+   which is linked before this stylesheet. */
 
 html,
 body {
@@ -13,29 +15,8 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
   color: #c7ccd4;
-}
-
-::-webkit-scrollbar {
-  width: 11px;
-  height: 11px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, .14);
-  border-radius: 6px;
-  border: 3px solid transparent;
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, .24);
-  background-clip: content-box;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
 }
 
 /* ---- Page shell ---- */
@@ -48,42 +29,6 @@ body {
   overflow: hidden;
   background: #181a1e;
   color: #c7ccd4;
-}
-
-/* Top bar breadcrumb */
-.topbar {
-  height: 46px;
-  flex: none;
-  background: #1f2226;
-  border-bottom: 1px solid rgba(255, 255, 255, .06);
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 14px;
-}
-
-.crumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  min-width: 0;
-}
-
-.crumb-section {
-  color: #8a8f98;
-}
-
-.crumb-sep {
-  color: #4b5058;
-}
-
-.crumb-leaf {
-  color: #eceef2;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* Scrollable content area */
@@ -115,7 +60,7 @@ body {
   color: #c7ccd4;
   font-size: 15px;
   line-height: 1.75;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .adr-md h1 {
@@ -177,7 +122,7 @@ body {
   background: rgba(255, 255, 255, .07);
   padding: 2px 6px;
   border-radius: 5px;
-  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: #e6b673;
 }

@@ -52,8 +52,6 @@ export interface Card {
   comments?: number;
   desc?: string;
   checklist?: ChecklistItem[];
-  /** Fallback progress counter for cards without an explicit checklist. */
-  subtasks?: { done: number; total: number };
   /** ISO timestamp of the last change. */
   updatedAt?: string;
 }

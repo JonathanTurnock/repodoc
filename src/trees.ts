@@ -2,14 +2,25 @@ import * as vscode from 'vscode';
 import { RepoDocStore } from './core/store';
 import { BoardRef, DecisionRecord, DocNode } from './core/types';
 
-export class BoardsTreeProvider implements vscode.TreeDataProvider<BoardRef> {
+/**
+ * Base class for tree providers that expose a `refresh()` which fires the
+ * `onDidChangeTreeData` event. Subclasses implement `getTreeItem`/`getChildren`.
+ */
+abstract class RefreshableTreeProvider<T> implements vscode.TreeDataProvider<T> {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData: vscode.Event<void> = this._onDidChangeTreeData.event;
 
-  constructor(private readonly store: RepoDocStore) {}
-
   refresh(): void {
     this._onDidChangeTreeData.fire();
+  }
+
+  abstract getTreeItem(element: T): vscode.TreeItem;
+  abstract getChildren(element?: T): T[];
+}
+
+export class BoardsTreeProvider extends RefreshableTreeProvider<BoardRef> {
+  constructor(private readonly store: RepoDocStore) {
+    super();
   }
 
   getTreeItem(ref: BoardRef): vscode.TreeItem {
@@ -33,14 +44,9 @@ export class BoardsTreeProvider implements vscode.TreeDataProvider<BoardRef> {
   }
 }
 
-export class DecisionsTreeProvider implements vscode.TreeDataProvider<DecisionRecord> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
-  readonly onDidChangeTreeData: vscode.Event<void> = this._onDidChangeTreeData.event;
-
-  constructor(private readonly store: RepoDocStore) {}
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire();
+export class DecisionsTreeProvider extends RefreshableTreeProvider<DecisionRecord> {
+  constructor(private readonly store: RepoDocStore) {
+    super();
   }
 
   getTreeItem(record: DecisionRecord): vscode.TreeItem {
@@ -78,14 +84,9 @@ function statusColor(status: string): string {
   }
 }
 
-export class DocsTreeProvider implements vscode.TreeDataProvider<DocNode> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
-  readonly onDidChangeTreeData: vscode.Event<void> = this._onDidChangeTreeData.event;
-
-  constructor(private readonly store: RepoDocStore) {}
-
-  refresh(): void {
-    this._onDidChangeTreeData.fire();
+export class DocsTreeProvider extends RefreshableTreeProvider<DocNode> {
+  constructor(private readonly store: RepoDocStore) {
+    super();
   }
 
   getTreeItem(node: DocNode): vscode.TreeItem {

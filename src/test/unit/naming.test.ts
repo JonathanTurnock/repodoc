@@ -1,5 +1,13 @@
 import * as assert from 'assert';
-import { numPrefix, pad, slugify, stripNumPrefix, titleCase } from '../../core/naming';
+import {
+  markdownTitle,
+  numPrefix,
+  pad,
+  slugFromFileName,
+  slugify,
+  stripNumPrefix,
+  titleCase,
+} from '../../core/naming';
 
 suite('naming.slugify', () => {
   test('lowercases and hyphenates spaces', () => {
@@ -80,5 +88,41 @@ suite('naming.titleCase', () => {
 
   test('empty string stays empty', () => {
     assert.strictEqual(titleCase(''), '');
+  });
+});
+
+suite('naming.slugFromFileName', () => {
+  test('drops the .md extension and NN- prefix', () => {
+    assert.strictEqual(slugFromFileName('03-my-card.md'), 'my-card');
+  });
+
+  test('is case-insensitive on the extension', () => {
+    assert.strictEqual(slugFromFileName('01-intro.MD'), 'intro');
+  });
+
+  test('leaves an already-slug name alone', () => {
+    assert.strictEqual(slugFromFileName('intro.md'), 'intro');
+  });
+});
+
+suite('naming.markdownTitle', () => {
+  test('uses the first ATX heading when present', () => {
+    assert.strictEqual(markdownTitle('# Real Title\n\nBody\n', 'fallback'), 'Real Title');
+  });
+
+  test('trims surrounding whitespace on the heading', () => {
+    assert.strictEqual(markdownTitle('#   Spaced   \n', 'fallback'), 'Spaced');
+  });
+
+  test('finds a heading that is not on the first line', () => {
+    assert.strictEqual(markdownTitle('---\ncolumn: todo\n---\n# Later\n', 'fallback'), 'Later');
+  });
+
+  test('falls back to the title-cased name when there is no heading', () => {
+    assert.strictEqual(markdownTitle('no heading here\n', 'my-doc'), 'My Doc');
+  });
+
+  test('empty content uses the fallback', () => {
+    assert.strictEqual(markdownTitle('', 'read-me'), 'Read Me');
   });
 });

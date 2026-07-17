@@ -1,13 +1,14 @@
 import * as vscode from 'vscode';
 import { marked } from 'marked';
 import { RepoDocStore } from '../core/store';
+import { buildWebviewHtml, escapeHtml } from './webviewHtml';
 
 type PanelKind = 'decision' | 'doc';
 
 interface PanelState {
   kind: PanelKind;
   /** For decisions: the decision id. For docs: the repo-relative path. */
-  key: string;
+  target: string;
 }
 
 /**
@@ -52,7 +53,7 @@ export class MarkdownPanel {
   ): void {
     const existing = MarkdownPanel.decisionPanel;
     if (existing) {
-      existing.state = { kind: 'decision', key: decisionId };
+      existing.state = { kind: 'decision', target: decisionId };
       existing.render();
       existing.panel.reveal(vscode.ViewColumn.One);
       return;
@@ -65,7 +66,7 @@ export class MarkdownPanel {
     );
     const instance = new MarkdownPanel(panel, extensionUri, store, {
       kind: 'decision',
-      key: decisionId,
+      target: decisionId,
     });
     MarkdownPanel.decisionPanel = instance;
     instance.render();
@@ -79,7 +80,7 @@ export class MarkdownPanel {
   ): void {
     const existing = MarkdownPanel.docPanel;
     if (existing) {
-      existing.state = { kind: 'doc', key: relPath };
+      existing.state = { kind: 'doc', target: relPath };
       existing.render();
       existing.panel.reveal(vscode.ViewColumn.One);
       return;
@@ -92,7 +93,7 @@ export class MarkdownPanel {
     );
     const instance = new MarkdownPanel(panel, extensionUri, store, {
       kind: 'doc',
-      key: relPath,
+      target: relPath,
     });
     MarkdownPanel.docPanel = instance;
     instance.render();
@@ -130,7 +131,7 @@ export class MarkdownPanel {
   }
 
   private renderDecision(): void {
-    const decision = this.store.getDecision(this.state.key);
+    const decision = this.store.getDecision(this.state.target);
     if (!decision) {
       // Record disappeared — leave the panel as-is.
       return;
@@ -150,7 +151,7 @@ export class MarkdownPanel {
   }
 
   private renderDoc(): void {
-    const doc = this.store.readDoc(this.state.key);
+    const doc = this.store.readDoc(this.state.target);
     if (!doc) {
       // Record disappeared — leave the panel as-is.
       return;
@@ -160,7 +161,7 @@ export class MarkdownPanel {
     this.panel.webview.html = this.wrap(
       'Docs',
       doc.title,
-      this.state.key,
+      this.state.target,
       bodyHtml,
     );
   }
@@ -171,43 +172,30 @@ export class MarkdownPanel {
     fileCrumb: string,
     bodyHtml: string,
   ): string {
-    const webview = this.panel.webview;
-    const cspSource = webview.cspSource;
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'markdown.css'),
-    );
-    const csp =
-      `default-src 'none'; ` +
-      `style-src ${cspSource} 'unsafe-inline'; ` +
-      `img-src ${cspSource} https: data:;`;
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="${csp}">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link href="${styleUri}" rel="stylesheet">
-  <title>${MarkdownPanel.escape(leaf)}</title>
-</head>
-<body>
-  <div class="page">
+    const body = `  <div class="page">
     <div class="topbar">
       <div class="crumb">
-        <span class="crumb-section">${MarkdownPanel.escape(section)}</span>
+        <span class="crumb-section">${escapeHtml(section)}</span>
         <span class="crumb-sep">/</span>
-        <span class="crumb-leaf">${MarkdownPanel.escape(leaf)}</span>
+        <span class="crumb-leaf">${escapeHtml(leaf)}</span>
       </div>
     </div>
     <div class="content">
       <div class="column">
-        <div class="filecrumb">${MarkdownPanel.escape(fileCrumb)}</div>
+        <div class="filecrumb">${escapeHtml(fileCrumb)}</div>
         <div class="adr-md">${bodyHtml}</div>
       </div>
     </div>
-  </div>
-</body>
-</html>`;
+  </div>`;
+
+    return buildWebviewHtml({
+      webview: this.panel.webview,
+      extensionUri: this.extensionUri,
+      title: leaf,
+      bodyHtml: body,
+      stylesheets: ['base.css', 'markdown.css'],
+      extraImgSrc: ['https:', 'data:'],
+    });
   }
 
   private static truncate(text: string, max: number): string {
@@ -215,14 +203,5 @@ export class MarkdownPanel {
       return text;
     }
     return `${text.slice(0, Math.max(0, max - 1)).trimEnd()}…`;
-  }
-
-  private static escape(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
   }
 }

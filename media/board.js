@@ -6,7 +6,7 @@
 
   /* ---- Local UI state (survives data re-renders) ---- */
   var state = {
-    data: null, // { boardId, board, config, dataDirName }
+    data: null, // { boardId, board, config, boardPath }
     query: '',
     filterAgent: null,
     addingCol: null, // column id currently showing the composer
@@ -40,7 +40,13 @@
       '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>',
   };
 
+  /* ---- Priority mappings (single source of truth) ---- */
+  var PRIORITY_COLORS = { high: '#e5534b', med: '#d99a30', low: '#7d828b' };
+  var PRIORITY_LABELS = { high: 'High', med: 'Medium', low: 'Low' };
+
   /* ---- Helpers ---- */
+  // Intentionally mirrors the host-side escapeHtml: the webview is deliberately
+  // build-step-free, so no shared module can be imported here.
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
@@ -153,6 +159,11 @@
       .pop();
   }
 
+  // Tinted chip/pill style: solid text, translucent fill + border in the same hue.
+  function tintStyle(color) {
+    return 'color:' + color + ';background:' + color + '22;border:1px solid ' + color + '44;';
+  }
+
   function matches(card) {
     var q = state.query.trim().toLowerCase();
     if (q && card.title.toLowerCase().indexOf(q) === -1) {
@@ -180,19 +191,16 @@
   }
 
   function subtaskProgress(card) {
-    if (card.checklist && card.checklist.length) {
-      var done = 0;
-      for (var i = 0; i < card.checklist.length; i++) {
-        if (card.checklist[i].done) {
-          done++;
-        }
+    if (!card.checklist || !card.checklist.length) {
+      return null;
+    }
+    var done = 0;
+    for (var i = 0; i < card.checklist.length; i++) {
+      if (card.checklist[i].done) {
+        done++;
       }
-      return { done: done, total: card.checklist.length };
     }
-    if (card.subtasks && card.subtasks.total) {
-      return { done: card.subtasks.done, total: card.subtasks.total };
-    }
-    return null;
+    return { done: done, total: card.checklist.length };
   }
 
   /* ---- Top bar ---- */
@@ -221,6 +229,10 @@
     var agents = cfg.agents || {};
     Object.keys(agents).forEach(function (key) {
       var a = agents[key];
+      // Repo .config.json is untrusted (hand-editable); skip malformed entries.
+      if (!a || typeof a.color !== 'string' || typeof a.initials !== 'string') {
+        return;
+      }
       var on = state.filterAgent === key;
       var style =
         'background:' +
@@ -261,9 +273,7 @@
     if (!l) {
       return null;
     }
-    var style =
-      'color:' + l.color + ';background:' + l.color + '22;border:1px solid ' + l.color + '44;';
-    return h('span', { class: 'label-chip', style: style }, l.name);
+    return h('span', { class: 'label-chip', style: tintStyle(l.color) }, l.name);
   }
 
   /* ---- Card ---- */
@@ -279,7 +289,7 @@
 
     var titleRow = [];
     if (card.priority === 'high' || card.priority === 'med') {
-      var pColor = card.priority === 'high' ? '#e5534b' : '#d99a30';
+      var pColor = PRIORITY_COLORS[card.priority];
       var pGlow =
         card.priority === 'high' ? 'rgba(229,83,75,.18)' : 'rgba(217,154,48,.16)';
       titleRow.push(
@@ -519,7 +529,7 @@
         }
       });
     });
-    var dataDir = (state.data && state.data.dataDirName) || '';
+    var boardPath = (state.data && state.data.boardPath) || '';
     return h('div', { class: 'statusbar' }, [
       h('span', { class: 'status-live' }, [
         h('span', { class: 'status-live-dot' }),
@@ -527,29 +537,25 @@
       ]),
       h('span', {}, total + ' cards'),
       h('div', { class: 'status-spacer' }),
-      h('span', { class: 'status-datadir' }, dataDir),
+      h('span', { class: 'status-datadir' }, boardPath),
     ]);
   }
 
   /* ---- Card detail modal ---- */
-  function buildModal() {
+  function columnOfCard(cardId) {
     var b = board();
-    var card = b.cards[state.openCardId];
-    if (!card) {
-      return null;
-    }
-    var col = null;
     for (var i = 0; i < b.columns.length; i++) {
-      if (b.columns[i].cardIds.indexOf(state.openCardId) !== -1) {
-        col = b.columns[i];
-        break;
+      if (b.columns[i].cardIds.indexOf(cardId) !== -1) {
+        return b.columns[i];
       }
     }
+    return null;
+  }
 
+  function modalHead(card, col) {
     var badges = (card.labels || []).map(labelChip).filter(Boolean);
     badges.push(h('span', { class: 'col-badge' }, col ? col.name : ''));
-
-    var head = h('div', { class: 'modal-head' }, [
+    return h('div', { class: 'modal-head' }, [
       h('div', { class: 'modal-head-row' }, [
         h('div', { class: 'modal-head-main' }, [
           h('div', { class: 'modal-badges' }, badges),
@@ -558,26 +564,27 @@
         h('button', { class: 'modal-close', onClick: closeModal }, '✕'),
       ]),
     ]);
+  }
 
-    var body = [];
-
-    if (card.live) {
-      var ag = agentDef(card.agent);
-      body.push(
-        h('div', { class: 'modal-live' }, [
-          h('span', { class: 'modal-live-dot' }),
-          h('div', { class: 'modal-live-main' }, [
-            h('div', { class: 'modal-live-status' }, card.status || ''),
-            h(
-              'div',
-              { class: 'modal-live-sub' },
-              (ag ? ag.name : 'Agent') + ' · ' + (card.progress || 0) + '% complete',
-            ),
-          ]),
-        ]),
-      );
+  function modalLiveBanner(card) {
+    if (!card.live) {
+      return null;
     }
+    var ag = agentDef(card.agent);
+    return h('div', { class: 'modal-live' }, [
+      h('span', { class: 'modal-live-dot' }),
+      h('div', { class: 'modal-live-main' }, [
+        h('div', { class: 'modal-live-status' }, card.status || ''),
+        h(
+          'div',
+          { class: 'modal-live-sub' },
+          (ag ? ag.name : 'Agent') + ' · ' + (card.progress || 0) + '% complete',
+        ),
+      ]),
+    ]);
+  }
 
+  function modalMeta(card) {
     var agDef = agentDef(card.agent);
     var assignee;
     if (agDef) {
@@ -592,92 +599,100 @@
     } else {
       assignee = h('span', { class: 'unassigned' }, 'Unassigned');
     }
-    var prColors = { high: '#e5534b', med: '#d99a30', low: '#7d828b' };
-    var prLabels = { high: 'High', med: 'Medium', low: 'Low' };
-    var prC = prColors[card.priority] || '#7d828b';
-    var prL = prLabels[card.priority] || 'Medium';
-    var priorityPill = h(
-      'span',
-      {
-        class: 'priority-pill',
-        style: 'color:' + prC + ';background:' + prC + '22;border:1px solid ' + prC + '44;',
-      },
-      prL,
-    );
-    body.push(
-      h('div', { class: 'modal-cols' }, [
-        h('div', {}, [h('div', { class: 'field-label' }, 'Assignee'), assignee]),
-        h('div', {}, [h('div', { class: 'field-label' }, 'Priority'), priorityPill]),
+    var prC = PRIORITY_COLORS[card.priority] || PRIORITY_COLORS.low;
+    var prL = PRIORITY_LABELS[card.priority] || PRIORITY_LABELS.med;
+    var priorityPill = h('span', { class: 'priority-pill', style: tintStyle(prC) }, prL);
+    return h('div', { class: 'modal-cols' }, [
+      h('div', {}, [h('div', { class: 'field-label' }, 'Assignee'), assignee]),
+      h('div', {}, [h('div', { class: 'field-label' }, 'Priority'), priorityPill]),
+    ]);
+  }
+
+  function modalDescription(card) {
+    if (!card.desc) {
+      return null;
+    }
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'field-label' }, 'Description'),
+      h('div', { class: 'section-desc' }, card.desc),
+    ]);
+  }
+
+  function modalChecklist(card) {
+    if (!card.checklist || !card.checklist.length) {
+      return null;
+    }
+    var done = 0;
+    card.checklist.forEach(function (x) {
+      if (x.done) {
+        done++;
+      }
+    });
+    var items = card.checklist.map(function (item, index) {
+      var boxChildren = item.done ? [icon(ICON.check, 'icon')] : [];
+      return h(
+        'div',
+        {
+          class: 'check-item',
+          onClick: function () {
+            vscode.postMessage({
+              type: 'toggleCheck',
+              cardId: state.openCardId,
+              index: index,
+            });
+          },
+        },
+        [
+          h('span', { class: 'check-box' + (item.done ? ' done' : '') }, boxChildren),
+          h('span', { class: 'check-text' + (item.done ? ' done' : '') }, item.text),
+        ],
+      );
+    });
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'checklist-head' }, [
+        h('div', { class: 'field-label', style: 'margin-bottom:0;' }, 'Checklist'),
+        h('span', { class: 'checklist-count' }, done + '/' + card.checklist.length),
       ]),
-    );
+      h('div', { class: 'checklist' }, items),
+    ]);
+  }
 
-    if (card.desc) {
-      body.push(
-        h('div', { class: 'section' }, [
-          h('div', { class: 'field-label' }, 'Description'),
-          h('div', { class: 'section-desc' }, card.desc),
-        ]),
-      );
+  function modalFiles(card) {
+    if (!card.files || !card.files.length) {
+      return null;
     }
-
-    if (card.checklist && card.checklist.length) {
-      var done = 0;
-      card.checklist.forEach(function (x) {
-        if (x.done) {
-          done++;
-        }
-      });
-      var items = card.checklist.map(function (item, index) {
-        var boxChildren = item.done ? [icon(ICON.check, 'icon')] : [];
-        return h(
-          'div',
-          {
-            class: 'check-item',
-            onClick: function () {
-              vscode.postMessage({
-                type: 'toggleCheck',
-                cardId: state.openCardId,
-                index: index,
-              });
-            },
+    var fileChips = card.files.map(function (f) {
+      return h(
+        'button',
+        {
+          class: 'file-chip',
+          onClick: function () {
+            vscode.postMessage({ type: 'openFile', path: f });
           },
-          [
-            h('span', { class: 'check-box' + (item.done ? ' done' : '') }, boxChildren),
-            h('span', { class: 'check-text' + (item.done ? ' done' : '') }, item.text),
-          ],
-        );
-      });
-      body.push(
-        h('div', { class: 'section' }, [
-          h('div', { class: 'checklist-head' }, [
-            h('div', { class: 'field-label', style: 'margin-bottom:0;' }, 'Checklist'),
-            h('span', { class: 'checklist-count' }, done + '/' + card.checklist.length),
-          ]),
-          h('div', { class: 'checklist' }, items),
-        ]),
+        },
+        [icon(ICON.fileModal, 'icon'), f],
       );
-    }
+    });
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'field-label' }, 'Files touched'),
+      h('div', { class: 'files-list' }, fileChips),
+    ]);
+  }
 
-    if (card.files && card.files.length) {
-      var fileChips = card.files.map(function (f) {
-        return h(
-          'button',
-          {
-            class: 'file-chip',
-            onClick: function () {
-              vscode.postMessage({ type: 'openFile', path: f });
-            },
-          },
-          [icon(ICON.fileModal, 'icon'), f],
-        );
-      });
-      body.push(
-        h('div', { class: 'section' }, [
-          h('div', { class: 'field-label' }, 'Files touched'),
-          h('div', { class: 'files-list' }, fileChips),
-        ]),
-      );
+  function buildModal() {
+    var card = board().cards[state.openCardId];
+    if (!card) {
+      return null;
     }
+    var col = columnOfCard(state.openCardId);
+
+    var body = [
+      modalLiveBanner(card),
+      modalMeta(card),
+      modalDescription(card),
+      modalChecklist(card),
+      modalFiles(card),
+    ];
 
     var panel = h(
       'div',
@@ -687,7 +702,7 @@
           e.stopPropagation();
         },
       },
-      [head, h('div', { class: 'modal-body' }, body)],
+      [modalHead(card, col), h('div', { class: 'modal-body' }, body)],
     );
 
     return h('div', { class: 'modal-overlay', onClick: closeModal }, [panel]);
@@ -782,6 +797,48 @@
     highlightColumn(colEl);
   }
 
+  // The DOM only shows cards passing the active search/agent filter, so a DOM
+  // position is not a valid index into the column's full card list. Anchor the
+  // drop on the first visible card after the placeholder, then find its slot
+  // among ALL of the column's cards (minus the dragged one).
+  function absoluteDropIndex(nextVisibleCardId, columnCardIds, draggedCardId) {
+    var remaining = columnCardIds.filter(function (id) {
+      return id !== draggedCardId;
+    });
+    var anchor = nextVisibleCardId ? remaining.indexOf(nextVisibleCardId) : -1;
+    return anchor >= 0 ? anchor : remaining.length;
+  }
+
+  // Walk the list DOM to find the first real card after the placeholder.
+  function nextVisibleCardAfterPlaceholder(list, ph) {
+    var seenPh = false;
+    var kids = list.children;
+    for (var i = 0; i < kids.length; i++) {
+      var child = kids[i];
+      if (child === ph) {
+        seenPh = true;
+        continue;
+      }
+      if (seenPh && child.classList.contains('card') && child !== drag.el) {
+        return child.dataset.cardId;
+      }
+    }
+    return null;
+  }
+
+  function columnById(colId) {
+    var b = board();
+    if (!b) {
+      return null;
+    }
+    for (var c = 0; c < b.columns.length; c++) {
+      if (b.columns[c].id === colId) {
+        return b.columns[c];
+      }
+    }
+    return null;
+  }
+
   function onColumnDrop(e) {
     if (!drag.active) {
       return;
@@ -794,42 +851,10 @@
     }
     var list = ph.parentElement;
     var colId = list.dataset.colId;
-    // The DOM only shows cards passing the active search/agent filter, so a
-    // DOM position is not a valid index into the column's full card list.
-    // Translate: find the first visible card after the placeholder and anchor
-    // on its position among ALL of the column's cards (minus the dragged one).
-    var nextCardId = null;
-    var seenPh = false;
-    var kids = list.children;
-    for (var i = 0; i < kids.length; i++) {
-      var child = kids[i];
-      if (child === ph) {
-        seenPh = true;
-        continue;
-      }
-      if (seenPh && child.classList.contains('card') && child !== drag.el) {
-        nextCardId = child.dataset.cardId;
-        break;
-      }
-    }
-    var index = 0;
-    var b = board();
-    var targetCol = null;
-    if (b) {
-      for (var c = 0; c < b.columns.length; c++) {
-        if (b.columns[c].id === colId) {
-          targetCol = b.columns[c];
-          break;
-        }
-      }
-    }
-    if (targetCol) {
-      var remaining = targetCol.cardIds.filter(function (id) {
-        return id !== drag.cardId;
-      });
-      var anchor = nextCardId ? remaining.indexOf(nextCardId) : -1;
-      index = anchor >= 0 ? anchor : remaining.length;
-    }
+    var targetCol = columnById(colId);
+    var index = targetCol
+      ? absoluteDropIndex(nextVisibleCardAfterPlaceholder(list, ph), targetCol.cardIds, drag.cardId)
+      : 0;
     var cardId = drag.cardId;
     cleanupDrag();
     vscode.postMessage({ type: 'moveCard', cardId: cardId, toColumn: colId, index: index });

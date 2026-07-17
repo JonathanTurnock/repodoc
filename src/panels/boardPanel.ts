@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { RepoDocStore } from '../core/store';
-import { BoardData, RepoDocConfig } from '../core/types';
+import { buildWebviewHtml } from './webviewHtml';
+import { resolveInsideRoot } from './pathContainment';
+import { DataMessage, WebviewToHostMessage } from './protocol';
 
 /**
  * A single kanban board rendered in a webview. One panel is kept per board id.
@@ -83,21 +84,24 @@ export class BoardPanel {
     }
     this.panel.title = board.name;
     const config = this.store.getBoardConfig(this.boardId);
-    void this.panel.webview.postMessage({
+    const message: DataMessage = {
       type: 'data',
       boardId: this.boardId,
       board,
       config,
-      dataDirName: this.store.displayPath(this.boardId),
-    } satisfies { type: string; boardId: string; board: BoardData; config: RepoDocConfig; dataDirName: string });
+      boardPath: this.store.displayPath(this.boardId),
+    };
+    void this.panel.webview.postMessage(message);
   }
 
   private onMessage(msg: unknown): void {
+    // Inbound messages are untrusted: narrow to the protocol union by
+    // validating the discriminant and payload fields at runtime.
     if (!msg || typeof msg !== 'object') {
       return;
     }
     const m = msg as Record<string, unknown>;
-    switch (m.type) {
+    switch (m.type as WebviewToHostMessage['type']) {
       case 'ready': {
         this.postData();
         break;
@@ -155,8 +159,8 @@ export class BoardPanel {
       void vscode.window.showWarningMessage(`RepoDoc: no workspace open for "${relPath}".`);
       return;
     }
-    const abs = path.resolve(root, relPath);
-    if (abs !== root && !abs.startsWith(root + path.sep)) {
+    const abs = resolveInsideRoot(root, relPath);
+    if (abs === undefined) {
       void vscode.window.showWarningMessage(`RepoDoc: "${relPath}" is outside the workspace.`);
       return;
     }
@@ -170,42 +174,13 @@ export class BoardPanel {
   }
 
   private getHtml(webview: vscode.Webview): string {
-    const nonce = getNonce();
-    const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'board.js'),
-    );
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.extensionUri, 'media', 'board.css'),
-    );
-    const csp = [
-      `default-src 'none'`,
-      `img-src ${webview.cspSource}`,
-      `style-src ${webview.cspSource} 'unsafe-inline'`,
-      `script-src 'nonce-${nonce}'`,
-    ].join('; ');
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="${csp}" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="${styleUri}" rel="stylesheet" />
-  <title>RepoDoc Board</title>
-</head>
-<body>
-  <div id="app"></div>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
-</body>
-</html>`;
+    return buildWebviewHtml({
+      webview,
+      extensionUri: this.extensionUri,
+      title: 'RepoDoc Board',
+      bodyHtml: '  <div id="app"></div>',
+      stylesheets: ['base.css', 'board.css'],
+      scriptFileName: 'board.js',
+    });
   }
-}
-
-function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
 }
