@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {
@@ -122,6 +122,11 @@
         "title": "RepoDoc Settings",
         "category": "RepoDoc",
         "icon": "$(gear)"
+      },
+      {
+        "command": "repodoc.plantUmlMenu",
+        "title": "Manage PlantUML Renderer",
+        "category": "RepoDoc"
       }
     ],
     "menus": {

@@ -7,6 +7,7 @@ import { SystemClock } from './adapters/systemClock';
 import { BoardsTreeProvider, DecisionsTreeProvider, DocsTreeProvider } from './trees';
 import { BoardPanel } from './panels/boardPanel';
 import { MarkdownPanel } from './panels/markdownPanel';
+import { PlantUmlStatus } from './panels/plantUmlStatus';
 
 /** Public surface returned by {@link activate}, used by e2e tests. */
 export interface RepoDocApi {
@@ -91,11 +92,17 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
     docsTree.refresh();
   };
 
+  const plantUmlStatus = new PlantUmlStatus();
+  context.subscriptions.push(plantUmlStatus);
+  void plantUmlStatus.refresh();
+
   context.subscriptions.push(
+    vscode.commands.registerCommand('repodoc.plantUmlMenu', () => plantUmlStatus.menu()),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('repodoc')) {
         MarkdownPanel.refreshAll();
         BoardPanel.refreshAll();
+        void plantUmlStatus.refresh();
       }
     }),
     store.onDidChange(() => {
@@ -220,6 +227,7 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
           : 'RepoDoc: the PlantUML container failed to start (see Docker logs).',
       );
       MarkdownPanel.refreshAll();
+      void plantUmlStatus.refresh();
     }),
 
     vscode.commands.registerCommand('repodoc.plantUmlStop', async () => {
@@ -227,6 +235,7 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
       void vscode.window.showInformationMessage(
         stopped ? 'RepoDoc: PlantUML renderer stopped.' : 'RepoDoc: no PlantUML container to stop.',
       );
+      void plantUmlStatus.refresh();
     }),
 
     vscode.commands.registerCommand('repodoc.installAgentSkill', async () => {
