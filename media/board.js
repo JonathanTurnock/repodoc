@@ -748,21 +748,15 @@
     return h('div', { class: 'canvas', onWheel: onCanvasWheel }, [inner]);
   }
 
-  // Plain vertical wheel scrolls the board horizontally (shift+wheel already
-  // does natively) — unless the pointer is over a column's card list that can
-  // still scroll vertically itself.
+  // Plain vertical wheel over the board BACKGROUND scrolls horizontally
+  // (shift+wheel already does natively). Inside a column stack the wheel stays
+  // strictly vertical — no horizontal fallthrough at the stack's edges.
   function onCanvasWheel(e) {
     if (e.shiftKey || Math.abs(e.deltaX) >= Math.abs(e.deltaY)) {
       return;
     }
-    var list = e.target && e.target.closest ? e.target.closest('.card-list') : null;
-    if (list && list.scrollHeight > list.clientHeight + 1) {
-      var atTop = list.scrollTop <= 0 && e.deltaY < 0;
-      var atBottom =
-        list.scrollTop + list.clientHeight >= list.scrollHeight - 1 && e.deltaY > 0;
-      if (!atTop && !atBottom) {
-        return; // the column list consumes the scroll
-      }
+    if (e.target && e.target.closest && e.target.closest('.column')) {
+      return; // stacks own the wheel
     }
     e.currentTarget.scrollLeft += e.deltaY;
     e.preventDefault();

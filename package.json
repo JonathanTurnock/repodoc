@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "publisher": "flying-dice",
   "license": "MIT",
   "repository": {

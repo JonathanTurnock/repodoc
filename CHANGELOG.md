@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.4.2] — 2026-07-17
+
+- Board wheel behavior: inside a column stack the wheel now scrolls strictly vertically (no more surprise horizontal panning when a column's list hits its end); the board background still pans horizontally with a plain wheel.
+
 ## [0.4.1] — 2026-07-17
 
 - PlantUML rendering mode is now a single dropdown: `repodoc.plantUmlRenderer` — `server` (default, public plantuml.com via `repodoc.plantUmlServer`) or `docker` (the managed local container). Replaces the `repodoc.plantUmlDocker` boolean.
