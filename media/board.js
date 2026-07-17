@@ -527,7 +527,7 @@
       ]),
       h('span', {}, total + ' cards'),
       h('div', { class: 'status-spacer' }),
-      h('span', { class: 'status-datadir' }, dataDir + '/'),
+      h('span', { class: 'status-datadir' }, dataDir),
     ]);
   }
 

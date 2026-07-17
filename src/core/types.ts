@@ -2,10 +2,13 @@
  * Shared data model for RepoDoc.
  *
  * All data lives inside the repository:
- *  - `.repodoc/config.json`      — labels + agents (RepoDocConfig)
- *  - `.repodoc/boards/<id>.json` — one BoardData file per board
- *  - `.repodoc/decisions/NNNN-slug.md` — decision records (markdown)
- *  - `docs/**` — documentation tree (plain markdown)
+ *  - `boards/<id>/.config.json`   — board name, columns, labels, agents
+ *  - `boards/<id>/NN-slug.md`     — one card per file (frontmatter + markdown)
+ *  - `decisions/NN-slug.md`       — decision records (markdown)
+ *  - `docs/**`                    — documentation tree (plain markdown)
+ *
+ * The in-memory shapes below (BoardData/Column/Card) are what the webview and
+ * panels consume — columns carry derived `cardIds`, cards are keyed by id.
  */
 
 export interface LabelDef {
@@ -81,9 +84,9 @@ export interface BoardRef {
 export interface DecisionRecord {
   /** Stable id — the file name without extension. */
   id: string;
-  /** Zero-padded number, e.g. "0001". */
+  /** Number as written in the file name, e.g. "01". */
   num: string;
-  /** File name, e.g. "0001-record-decisions.md". */
+  /** File name, e.g. "01-record-decisions.md". */
   file: string;
   title: string;
   /** "Accepted" | "Proposed" | "Superseded" (free-form, from the markdown). */

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { RepoDocStore } from './store';
-import { BoardRef, DecisionRecord, DocNode } from './types';
+import { RepoDocStore } from './core/store';
+import { BoardRef, DecisionRecord, DocNode } from './core/types';
 
 export class BoardsTreeProvider implements vscode.TreeDataProvider<BoardRef> {
   private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();

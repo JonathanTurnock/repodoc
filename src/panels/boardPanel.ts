@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { RepoDocStore } from '../store';
-import { BoardData, RepoDocConfig } from '../types';
+import { RepoDocStore } from '../core/store';
+import { BoardData, RepoDocConfig } from '../core/types';
 
 /**
  * A single kanban board rendered in a webview. One panel is kept per board id.
@@ -82,13 +82,13 @@ export class BoardPanel {
       return;
     }
     this.panel.title = board.name;
-    const config = this.store.getConfig();
+    const config = this.store.getBoardConfig(this.boardId);
     void this.panel.webview.postMessage({
       type: 'data',
       boardId: this.boardId,
       board,
       config,
-      dataDirName: this.store.dataDirName,
+      dataDirName: this.store.displayPath(this.boardId),
     } satisfies { type: string; boardId: string; board: BoardData; config: RepoDocConfig; dataDirName: string });
   }
 

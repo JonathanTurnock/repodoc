@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { marked } from 'marked';
-import { RepoDocStore } from '../store';
+import { RepoDocStore } from '../core/store';
 
 type PanelKind = 'decision' | 'doc';
 
@@ -136,7 +136,7 @@ export class MarkdownPanel {
       return;
     }
     const bodyHtml = marked.parse(decision.body) as string;
-    const fileCrumb = `${this.store.dataDirName}/decisions/${decision.file}`;
+    const fileCrumb = `decisions/${decision.file}`;
     this.panel.title = MarkdownPanel.truncate(
       `ADR-${decision.num} — ${decision.title}`,
       60,

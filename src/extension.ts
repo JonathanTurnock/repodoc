@@ -1,12 +1,46 @@
 import * as vscode from 'vscode';
-import { RepoDocStore } from './store';
+import { RepoDocStore } from './core/store';
+import { NodeFileSystemAdapter } from './adapters/nodeFileSystem';
+import { MemFileSystemAdapter } from './adapters/memFileSystem';
+import { SystemClock } from './adapters/systemClock';
 import { BoardsTreeProvider, DecisionsTreeProvider, DocsTreeProvider } from './trees';
 import { BoardPanel } from './panels/boardPanel';
 import { MarkdownPanel } from './panels/markdownPanel';
 
 export function activate(context: vscode.ExtensionContext): void {
-  const store = new RepoDocStore(context);
-  context.subscriptions.push(store);
+  const folders = vscode.workspace.workspaceFolders;
+  const root = folders && folders.length > 0 ? folders[0].uri.fsPath : undefined;
+  const fileSystem = root ? new NodeFileSystemAdapter(root) : new MemFileSystemAdapter();
+  const store = new RepoDocStore(fileSystem, new SystemClock(), root);
+
+  if (root) {
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const scheduleChange = (): void => {
+      if (debounce) {
+        clearTimeout(debounce);
+      }
+      debounce = setTimeout(() => {
+        debounce = undefined;
+        store.notifyExternalChange();
+      }, 150);
+    };
+    for (const pattern of ['**/boards/**', '**/decisions/**', '**/docs/**']) {
+      const watcher = vscode.workspace.createFileSystemWatcher(
+        new vscode.RelativePattern(root, pattern),
+      );
+      watcher.onDidChange(scheduleChange);
+      watcher.onDidCreate(scheduleChange);
+      watcher.onDidDelete(scheduleChange);
+      context.subscriptions.push(watcher);
+    }
+    context.subscriptions.push({
+      dispose: () => {
+        if (debounce) {
+          clearTimeout(debounce);
+        }
+      },
+    });
+  }
 
   const boardsTree = new BoardsTreeProvider(store);
   const decisionsTree = new DecisionsTreeProvider(store);
@@ -39,8 +73,8 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('repodoc.init', async () => {
-      await store.init();
+    vscode.commands.registerCommand('repodoc.init', () => {
+      store.init();
       updateInitializedContext();
       refreshTrees();
       void vscode.window.showInformationMessage('RepoDoc initialized in this workspace.');
