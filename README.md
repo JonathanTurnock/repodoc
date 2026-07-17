@@ -39,7 +39,9 @@ Columns can declare **enter/exit gates** — conditions a card must satisfy to m
 ]
 ```
 
-On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until the `peer-reviewed` field is checked. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
+On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until the `peer-reviewed` field is checked. The process lives in config, so it shows up in diffs and is honored by the agents editing the files. Gate status, custom fields, and the agent's **work journal** — with one-click `path:line` links into the code — all live on the card:
+
+![Card with gates, fields, and the agent journal](images/journal.png)
 
 ## Decision records
 
