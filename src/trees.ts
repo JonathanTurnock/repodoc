@@ -91,7 +91,7 @@ export class DocsTreeProvider extends RefreshableTreeProvider<DocNode> {
 
   getTreeItem(node: DocNode): vscode.TreeItem {
     if (node.type === 'dir') {
-      const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.Collapsed);
+      const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.Expanded);
       item.tooltip = node.relPath;
       item.contextValue = 'repodoc.docDir';
       item.iconPath = vscode.ThemeIcon.Folder;

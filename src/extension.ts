@@ -99,6 +99,18 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
       BoardPanel.createOrShow(context.extensionUri, store, boardId);
     }),
 
+    // Internal (not contributed to the palette): open a card's detail modal in
+    // an already-open board panel. Used by automation and the demo driver.
+    vscode.commands.registerCommand(
+      'repodoc.openCard',
+      (boardId: unknown, cardId: unknown): boolean => {
+        if (typeof boardId !== 'string' || typeof cardId !== 'string') {
+          return false;
+        }
+        return BoardPanel.postOpenCard(boardId, cardId);
+      },
+    ),
+
     vscode.commands.registerCommand('repodoc.openDecision', (id: string) => {
       MarkdownPanel.showDecision(context.extensionUri, store, id);
     }),

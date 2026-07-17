@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml } from './webviewHtml';
 import { resolveInsideRoot } from './pathContainment';
-import { DataMessage, WebviewToHostMessage } from './protocol';
+import { DataMessage, OpenCardMessage, WebviewToHostMessage } from './protocol';
 
 /**
  * A single kanban board rendered in a webview. One panel is kept per board id.
@@ -65,6 +65,20 @@ export class BoardPanel {
     for (const panel of BoardPanel.panels.values()) {
       panel.postData();
     }
+  }
+
+  /**
+   * Open a card's detail modal in an already-open board panel (tests /
+   * automation). Returns false when the board has no open panel.
+   */
+  public static postOpenCard(boardId: string, cardId: string): boolean {
+    const panel = BoardPanel.panels.get(boardId);
+    if (!panel) {
+      return false;
+    }
+    const msg: OpenCardMessage = { type: 'openCard', cardId };
+    void panel.panel.webview.postMessage(msg);
+    return true;
   }
 
   private dispose(): void {

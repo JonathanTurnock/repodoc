@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const fixtureWorkspace = resolve(here, '.vscode-test/fixtures/workspace');
 mkdirSync(fixtureWorkspace, { recursive: true });
 
-export default defineConfig([
+const configs = [
   {
     // Pure core logic exercised against the in-memory adapter. These still run
     // inside the extension host, but none of them touch the vscode API.
@@ -24,4 +24,19 @@ export default defineConfig([
     workspaceFolder: fixtureWorkspace,
     mocha: { timeout: 60000 },
   },
-]);
+];
+
+// Screenshot driver — opt-in only (never part of `npm test` / CI). Drives the
+// dev host through each screen while an orchestrating shell captures the
+// window. See src/test/demo/demo.driver.test.ts.
+if (process.env.REPODOC_DEMO === '1') {
+  configs.push({
+    label: 'demo',
+    files: 'out/test/demo/**/*.test.js',
+    workspaceFolder: process.env.REPODOC_DEMO_WS,
+    mocha: { timeout: 240000 },
+    launchArgs: ['--user-data-dir', process.env.REPODOC_DEMO_UDD],
+  });
+}
+
+export default defineConfig(configs);

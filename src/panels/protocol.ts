@@ -24,6 +24,14 @@ export interface DataMessage {
 }
 
 
+/** Host-driven card open (tests / automation) — mirrors clicking the card. */
+export interface OpenCardMessage {
+  type: 'openCard';
+  cardId: string;
+}
+
+export type HostToWebviewMessage = DataMessage | OpenCardMessage;
+
 /** Messages sent from the webview up to the extension host. */
 export interface ReadyMessage {
   type: 'ready';

@@ -960,7 +960,18 @@
   /* ---- Messaging ---- */
   window.addEventListener('message', function (event) {
     var msg = event.data;
-    if (!msg || msg.type !== 'data') {
+    if (!msg) {
+      return;
+    }
+    if (msg.type === 'openCard' && typeof msg.cardId === 'string') {
+      // Host-driven card open (tests / automation) — mirrors a card click.
+      state.openCardId = msg.cardId;
+      if (state.data) {
+        render();
+      }
+      return;
+    }
+    if (msg.type !== 'data') {
       return;
     }
     if (drag.active) {
