@@ -42,9 +42,9 @@ and the card keeps its `status: blocked on gate: <gateId>`.
   `- [x] tests-passing — <result> (<you>, <ISO time>)`. Never record a line for a
   run that did not pass.
 - **Field gates** are satisfied by setting the field the gate checks. This
-  board's `peer-review` gate checks `reviewed-by = jonathan`, so approval is just
-  the `reviewed-by` select being set to `jonathan`. Agents never set a field that
-  encodes a human sign-off (`reviewed-by`, `approved-by`, …) — that value is the
+  board's `peer-review` gate checks `peer-reviewed = true`, so approval is just
+  the `peer-reviewed` checkbox being ticked by a human. Agents never set a field that
+  encodes a human sign-off (`peer-reviewed`, `approved-by`, …) — that value is the
   named person's to set.
 - **Overriding** a gate is allowed but recorded: an `OVERRIDDEN` line names who
   bypassed it, so it shows up in the diff and in `git blame`.

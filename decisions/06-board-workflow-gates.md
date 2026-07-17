@@ -30,9 +30,9 @@ current column's `exit` gates are evaluated, and the move is allowed only if the
 all pass.
 
 **Approvals are just field gates.** A review sign-off is a field the reviewer
-sets — this board uses a `reviewed-by` select checked with `= jonathan` on the
+sets — this board uses a `peer-reviewed` select checked with `= true` on the
 Done column. Identity is social trust backed by `git blame`: an agent must never
-set a field whose gate encodes a human sign-off (name heuristic: `reviewed-by`,
+set a field whose gate encodes a human sign-off (name heuristic: `peer-reviewed`,
 `approved-by`) unless it is that person. Collapsing approvals into fields removed
 a whole gate kind — there is no separate `approval` machinery, just a field and a
 check.

@@ -1,21 +1,55 @@
 {
   "name": "RepoDoc",
   "columns": [
-    { "id": "backlog", "name": "Backlog", "color": "#7d828b" },
-    { "id": "todo", "name": "To Do", "color": "#4c8bf5" },
-    { "id": "doing", "name": "In Progress", "color": "#5cd68a", "wip": 3 },
+    {
+      "id": "backlog",
+      "name": "Backlog",
+      "color": "#7d828b"
+    },
+    {
+      "id": "todo",
+      "name": "To Do",
+      "color": "#4c8bf5"
+    },
+    {
+      "id": "doing",
+      "name": "In Progress",
+      "color": "#5cd68a",
+      "wip": 3
+    },
     {
       "id": "review",
       "name": "In Review",
       "color": "#d99a30",
       "enter": [
-        { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
-        { "id": "change-review", "script": "claude /change-review", "label": "change-review skill run" },
-        { "id": "clean-code-review", "script": "claude /clean-code-review", "label": "clean-code audit run" }
+        {
+          "id": "tests-passing",
+          "script": "npm test",
+          "label": "All tests passing"
+        },
+        {
+          "id": "change-review",
+          "script": "claude /change-review",
+          "label": "change-review skill run"
+        },
+        {
+          "id": "clean-code-review",
+          "script": "claude /clean-code-review",
+          "label": "clean-code audit run"
+        }
       ],
       "exit": [
-        { "id": "comments-addressed", "field": "comments-addressed", "check": "= true", "label": "All review comments addressed" },
-        { "id": "no-clean-code-violations", "script": "! grep -rn \"TODO: clean-code\" src media", "label": "No clean-code violations" }
+        {
+          "id": "comments-addressed",
+          "field": "comments-addressed",
+          "check": "= true",
+          "label": "All review comments addressed"
+        },
+        {
+          "id": "no-clean-code-violations",
+          "script": "! grep -rn \"TODO: clean-code\" src media",
+          "label": "No clean-code violations"
+        }
       ]
     },
     {
@@ -23,26 +57,84 @@
       "name": "Done",
       "color": "#3fb27f",
       "enter": [
-        { "id": "merged-to-main", "script": "git merge-base --is-ancestor HEAD origin/main", "label": "Merged into main" },
-        { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed by Jonathan" }
+        {
+          "id": "merged-to-main",
+          "script": "git merge-base --is-ancestor HEAD origin/main",
+          "label": "Merged into main"
+        },
+        {
+          "id": "peer-review",
+          "field": "peer-reviewed",
+          "check": "= true",
+          "label": "Peer reviewed"
+        }
       ]
     }
   ],
   "fields": [
-    { "id": "release", "label": "Release", "type": "select", "options": ["v0.1.0", "v0.2.0", "v0.3.0"], "showOnCard": true },
-    { "id": "effort", "label": "Effort", "type": "select", "options": ["S", "M", "L"] },
-    { "id": "reviewed-by", "label": "Reviewed by", "type": "select", "options": ["jonathan"] },
-    { "id": "comments-addressed", "label": "Comments addressed", "type": "boolean" }
+    {
+      "id": "release",
+      "label": "Release",
+      "type": "select",
+      "options": [
+        "v0.1.0",
+        "v0.2.0",
+        "v0.3.0"
+      ],
+      "showOnCard": true
+    },
+    {
+      "id": "effort",
+      "label": "Effort",
+      "type": "select",
+      "options": [
+        "S",
+        "M",
+        "L"
+      ]
+    },
+    {
+      "id": "comments-addressed",
+      "label": "Comments addressed",
+      "type": "boolean"
+    },
+    {
+      "id": "peer-reviewed",
+      "label": "Peer reviewed",
+      "type": "boolean"
+    }
   ],
   "labels": {
-    "core": { "name": "core", "color": "#3fb27f" },
-    "webview": { "name": "webview", "color": "#4c8bf5" },
-    "bug": { "name": "bug", "color": "#e5534b" },
-    "ci": { "name": "ci", "color": "#d99a30" },
-    "docs": { "name": "docs", "color": "#9a7bd6" },
-    "testing": { "name": "testing", "color": "#c9a227" }
+    "core": {
+      "name": "core",
+      "color": "#3fb27f"
+    },
+    "webview": {
+      "name": "webview",
+      "color": "#4c8bf5"
+    },
+    "bug": {
+      "name": "bug",
+      "color": "#e5534b"
+    },
+    "ci": {
+      "name": "ci",
+      "color": "#d99a30"
+    },
+    "docs": {
+      "name": "docs",
+      "color": "#9a7bd6"
+    },
+    "testing": {
+      "name": "testing",
+      "color": "#c9a227"
+    }
   },
   "agents": {
-    "claude": { "name": "Claude", "color": "#d97757", "initials": "CL" }
+    "claude": {
+      "name": "Claude",
+      "color": "#d97757",
+      "initials": "CL"
+    }
   }
 }

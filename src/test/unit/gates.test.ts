@@ -60,14 +60,14 @@ suite('gates — field kind', () => {
   });
 
   test('equality check reports the field, check, and current value', () => {
-    const gate: GateDef = { id: 'g', field: 'reviewed-by', check: '= jonathan' };
-    assert.deepStrictEqual(one(baseCard({ custom: { 'reviewed-by': 'jonathan' } }), gate), {
+    const gate: GateDef = { id: 'g', field: 'sign-off', check: '= approved' };
+    assert.deepStrictEqual(one(baseCard({ custom: { 'sign-off': 'approved' } }), gate), {
       satisfied: true,
-      reason: 'reviewed-by = jonathan (currently: jonathan)',
+      reason: 'sign-off = approved (currently: approved)',
     });
     assert.deepStrictEqual(one(baseCard(), gate), {
       satisfied: false,
-      reason: 'reviewed-by = jonathan (currently: unset)',
+      reason: 'sign-off = approved (currently: unset)',
     });
   });
 

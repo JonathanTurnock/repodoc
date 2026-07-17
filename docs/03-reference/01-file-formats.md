@@ -65,7 +65,7 @@ column; `exit` gates must pass to move it OUT. Each gate has an `id`, an optiona
 ```json
 "enter": [
   { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
-  { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed" }
+  { "id": "peer-review", "field": "peer-reviewed", "check": "= true", "label": "Peer reviewed" }
 ]
 ```
 

@@ -180,8 +180,8 @@ field's current value:
 | \`match <re>\`   | the value matches the regular expression \`re\` |
 
 **Approvals are field gates.** A review sign-off is just a field the reviewer
-sets — e.g. a \`reviewed-by\` select checked with \`= jonathan\`. NEVER set a field
-whose gate clearly encodes a HUMAN sign-off (name heuristic: \`reviewed-by\`,
+sets — e.g. a \`peer-reviewed\` select checked with \`= true\`. NEVER set a field
+whose gate clearly encodes a HUMAN sign-off (name heuristic: \`peer-reviewed\`,
 \`approved-by\`, and the like) unless you are the person named. That is the human's
 to set.
 

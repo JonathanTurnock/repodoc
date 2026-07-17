@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.1] — 2026-07-17
+
+- No person-attribution fields: peer sign-off is an anonymous boolean field (`peer-reviewed`) checked by a field gate — who did what lives in the journal and git history, not in card fields. Skill, docs, and examples updated.
+
 ## [0.3.0] — 2026-07-17
 
 - **Workflow gates** — columns declare `enter`/`exit` conditions in the board config: `script` gates (a command that must have run green, evidence recorded in the card's `## Gates` section) and `field` gates (checked live via a mini-syntax: `= v`, `!= v`, `contains v`, `match re`, numeric comparisons, `empty`/`nonempty`). Blocked drags show which gates fail, with a recorded override; agents honor gates via the skill. Approvals are plain field edits (e.g. a `reviewed-by` dropdown) guarded by a field gate.

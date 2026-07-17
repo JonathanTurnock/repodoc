@@ -35,11 +35,11 @@ Columns can declare **enter/exit gates** — conditions a card must satisfy to m
 ```json
 "enter": [
   { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
-  { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed" }
+  { "id": "peer-review", "field": "peer-reviewed", "check": "= true", "label": "Peer reviewed" }
 ]
 ```
 
-On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until `reviewed-by` is set to `jonathan`. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
+On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until the `peer-reviewed` field is checked. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
 
 ## Decision records
 
