@@ -96,7 +96,7 @@
         } else if (key === 'style') {
           node.setAttribute('style', val);
         } else if (key === 'html') {
-          node.innerHTML = val; // trusted static SVG strings only
+          node.innerHTML = val; // static SVGs + host-rendered markdown (CSP blocks scripts)
         } else if (key === 'dataset') {
           for (var dk in val) {
             if (Object.prototype.hasOwnProperty.call(val, dk)) {
@@ -843,10 +843,13 @@
     if (!card.desc) {
       return null;
     }
-    return h('div', { class: 'section' }, [
-      h('div', { class: 'field-label' }, 'Description'),
-      h('div', { class: 'section-desc' }, card.desc),
-    ]);
+    // Host-rendered markdown (marked, same pipeline as the docs/decision
+    // views); falls back to plain text when the map is missing.
+    var html = state.data && state.data.descHtml ? state.data.descHtml[card.id] : null;
+    var body = html
+      ? h('div', { class: 'section-desc md', html: html })
+      : h('div', { class: 'section-desc' }, card.desc);
+    return h('div', { class: 'section' }, [h('div', { class: 'field-label' }, 'Description'), body]);
   }
 
   function modalChecklist(card) {

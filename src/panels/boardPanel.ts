@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { marked } from 'marked';
 import * as path from 'path';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml } from './webviewHtml';
@@ -133,12 +134,19 @@ export class BoardPanel {
     }
     this.panel.title = board.name;
     const config = this.store.getBoardConfig(this.boardId);
+    const descHtml: Record<string, string> = {};
+    for (const card of Object.values(board.cards)) {
+      if (card.desc) {
+        descHtml[card.id] = marked.parse(card.desc) as string;
+      }
+    }
     const message: DataMessage = {
       type: 'data',
       boardId: this.boardId,
       board,
       config,
       boardPath: this.store.displayPath(this.boardId),
+      descHtml,
     };
     void this.panel.webview.postMessage(message);
   }

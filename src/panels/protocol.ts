@@ -21,6 +21,8 @@ export interface DataMessage {
   config: RepoDocConfig;
   /** Display path of the board's data directory, e.g. `boards/<id>/`. */
   boardPath: string;
+  /** Card descriptions rendered to HTML (markdown, host-side), keyed by card id. */
+  descHtml: Record<string, string>;
 }
 
 

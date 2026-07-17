@@ -1,5 +1,9 @@
 # Change Log
 
+## [0.3.6] — 2026-07-17
+
+- Card descriptions render as markdown in the card modal (host-rendered with the same pipeline as the docs/decision views): paragraphs, lists, links, inline code, code blocks, and blockquotes, all theme-styled.
+
 ## [0.3.5] — 2026-07-17
 
 - Markdown files with YAML frontmatter render it as a tidy key/value meta table in the reading views. Decisions show their full frontmatter (status, date, and any extra keys) as the table under the title; docs pages do the same when they carry frontmatter (which no longer leaks into the rendered body as raw `---` text).
