@@ -9,7 +9,6 @@ import {
   CustomFieldDef,
   CustomFieldType,
   GateDef,
-  GateKind,
   LabelDef,
 } from './types';
 import { titleCase } from './naming';
@@ -61,13 +60,6 @@ const FIELD_TYPES: ReadonlySet<CustomFieldType> = new Set<CustomFieldType>([
   'date',
   'select',
   'multiselect',
-]);
-
-const GATE_KINDS: ReadonlySet<GateKind> = new Set<GateKind>([
-  'checklist',
-  'command',
-  'approval',
-  'field',
 ]);
 
 export const DEFAULT_LABELS: Record<string, LabelDef> = {
@@ -203,8 +195,11 @@ function normalizeFields(value: unknown): CustomFieldDef[] {
 }
 
 /**
- * Validates a per-column `enter`/`exit` gate list. Drops non-objects, entries
- * without a string id, and unknown kinds; keeps only the props each kind uses.
+ * Validates a per-column `enter`/`exit` gate list, keeping only
+ * `{id, label?, script?, field?, check?}`. Drops non-objects and entries
+ * without a string id or without at least one of `script` / `field`. When both
+ * `script` and `field` are present, `script` wins (the entry becomes a script
+ * gate and `field`/`check` are dropped). `check` is kept only on a field gate.
  */
 function normalizeGates(value: unknown): GateDef[] {
   if (!Array.isArray(value)) {
@@ -220,38 +215,22 @@ function normalizeGates(value: unknown): GateDef[] {
     if (typeof id !== 'string' || id.length === 0) {
       continue;
     }
-    const kind = g.kind;
-    if (typeof kind !== 'string' || !GATE_KINDS.has(kind as GateKind)) {
-      continue;
+    const script = typeof g.script === 'string' ? g.script : undefined;
+    const field = typeof g.field === 'string' ? g.field : undefined;
+    if (script === undefined && field === undefined) {
+      continue; // a gate is script XOR field — an entry with neither is dropped
     }
-    const def: GateDef = { id, kind: kind as GateKind };
+    const def: GateDef = { id };
     if (typeof g.label === 'string') {
       def.label = g.label;
     }
-    switch (kind) {
-      case 'command':
-        if (typeof g.run === 'string') {
-          def.run = g.run;
-        }
-        break;
-      case 'approval':
-        def.by = Array.isArray(g.by)
-          ? g.by.filter((b): b is string => typeof b === 'string')
-          : [];
-        break;
-      case 'field':
-        if (typeof g.field === 'string') {
-          def.field = g.field;
-        }
-        if (typeof g.nonEmpty === 'boolean') {
-          def.nonEmpty = g.nonEmpty;
-        }
-        if (typeof g.equals === 'string') {
-          def.equals = g.equals;
-        }
-        break;
-      default:
-        break;
+    if (script !== undefined) {
+      def.script = script; // precedence: when both are set, keep only script
+    } else {
+      def.field = field;
+      if (typeof g.check === 'string') {
+        def.check = g.check; // check is meaningful only for a field gate
+      }
     }
     out.push(def);
   }

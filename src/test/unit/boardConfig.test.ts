@@ -145,7 +145,7 @@ suite('boardConfig.normalizeBoardConfig — custom fields', () => {
 });
 
 suite('boardConfig.normalizeBoardConfig — column gates', () => {
-  test('normalizes enter/exit gates per kind and strips unknown props', () => {
+  test('keeps only {id, label?, script?, field?, check?} and strips unknown props', () => {
     const config = normalizeBoardConfig(
       {
         name: 'B',
@@ -155,16 +155,11 @@ suite('boardConfig.normalizeBoardConfig — column gates', () => {
             name: 'Review',
             color: '#000',
             enter: [
-              { id: 'g1', kind: 'checklist', label: 'All done?' },
-              { id: 'g2', kind: 'command', run: 'npm test', junk: 'x' },
-              { id: 'g3', kind: 'approval', by: ['jonathan', 5] },
-              { id: 'g4', kind: 'field', field: 'sev', equals: 'high', nonEmpty: true },
-              { id: 'g5', kind: 'bogus' }, // unknown kind — dropped
-              { id: '', kind: 'checklist' }, // no id — dropped
-              { kind: 'checklist' }, // no id — dropped
-              null,
+              { id: 'g1', script: 'npm test', label: 'CI', junk: 'x' },
+              { id: 'g2', field: 'sev', check: '= high' },
+              { id: 'g3', field: 'reviewer' }, // field with no check — kept
             ],
-            exit: [{ id: 'x1', kind: 'approval' }],
+            exit: [{ id: 'x1', script: 'npm run build' }],
           },
           { id: 'todo', name: 'Todo', color: '#000' },
         ],
@@ -172,12 +167,73 @@ suite('boardConfig.normalizeBoardConfig — column gates', () => {
       'b',
     );
     assert.deepStrictEqual(config.columns[0].enter, [
-      { id: 'g1', kind: 'checklist', label: 'All done?' },
-      { id: 'g2', kind: 'command', run: 'npm test' },
-      { id: 'g3', kind: 'approval', by: ['jonathan'] },
-      { id: 'g4', kind: 'field', field: 'sev', equals: 'high', nonEmpty: true },
+      { id: 'g1', label: 'CI', script: 'npm test' },
+      { id: 'g2', field: 'sev', check: '= high' },
+      { id: 'g3', field: 'reviewer' },
     ]);
-    assert.deepStrictEqual(config.columns[0].exit, [{ id: 'x1', kind: 'approval', by: [] }]);
+    assert.deepStrictEqual(config.columns[0].exit, [{ id: 'x1', script: 'npm run build' }]);
+  });
+
+  test('drops entries lacking a string id or lacking both script and field', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        columns: [
+          {
+            id: 'review',
+            name: 'Review',
+            color: '#000',
+            enter: [
+              { id: 'ok', field: 'sev' },
+              { id: 'noneither', label: 'nope' }, // neither script nor field — dropped
+              { id: 'badtypes', script: 5, field: 7 }, // non-string script/field — dropped
+              { id: '', field: 'sev' }, // empty id — dropped
+              { field: 'sev' }, // no id — dropped
+              null,
+              'garbage',
+            ],
+          },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.columns[0].enter, [{ id: 'ok', field: 'sev' }]);
+  });
+
+  test('when both script and field are present, script wins and check is dropped', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        columns: [
+          {
+            id: 'review',
+            name: 'Review',
+            color: '#000',
+            enter: [{ id: 'g', script: 'npm test', field: 'sev', check: '= high', label: 'L' }],
+          },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.columns[0].enter, [{ id: 'g', label: 'L', script: 'npm test' }]);
+  });
+
+  test('check is dropped when there is no field (only meaningful on a field gate)', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        columns: [
+          {
+            id: 'review',
+            name: 'Review',
+            color: '#000',
+            enter: [{ id: 'g', script: 'npm test', check: 'nonempty' }],
+          },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.columns[0].enter, [{ id: 'g', script: 'npm test' }]);
   });
 
   test('columns without gates carry no enter/exit keys', () => {

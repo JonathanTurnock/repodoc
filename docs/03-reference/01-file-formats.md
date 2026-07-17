@@ -52,21 +52,37 @@ unknown, never dropped.
 ### Gates — `enter` / `exit`
 
 A column may gate transitions. `enter` gates must pass to move a card INTO the
-column; `exit` gates must pass to move it OUT. Each gate has an `id`, a `kind`,
-and an optional `label`:
+column; `exit` gates must pass to move it OUT. Each gate has an `id`, an optional
+`label`, and exactly one of two kinds:
 
-- `checklist` — the card's `## Checklist` must be complete.
-- `command` — `run` names a check (e.g. `"npm test"`); evidence-based in v1.
-- `approval` — `by` lists identities (a git `user.name`) allowed to approve.
-- `field` — `field` names a field id; satisfied when it is `nonEmpty`, or
-  `equals` a given value.
+- **script** — `script` names a command (e.g. `"npm test"`) that must have run
+  green. Evidence-based: satisfied by a done line for the gate id in the card's
+  `## Gates` section; the extension does not execute it.
+- **field** — `field` names a field id (custom or reserved) evaluated live
+  against the card's frontmatter. An optional `check` expression constrains the
+  value; absent, it means "non-empty".
 
 ```json
 "enter": [
-  { "id": "tests-passing", "kind": "command", "run": "npm test", "label": "All tests passing" },
-  { "id": "peer-review", "kind": "approval", "by": ["jonathan"], "label": "Peer reviewed" }
+  { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
+  { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed" }
 ]
 ```
+
+**Approvals are field gates** — a review sign-off is just a field a reviewer
+sets, checked with `= <name>`. The `check` mini-syntax:
+
+| `check`         | passes when                                    |
+| --------------- | ---------------------------------------------- |
+| *(absent)*      | the field is non-empty                         |
+| `empty`         | the field is empty / unset                     |
+| `nonempty`      | the field has any value                        |
+| `= v`           | the value equals `v`                           |
+| `!= v`          | the value does not equal `v`                   |
+| `> n` / `>= n`  | numeric greater-than / greater-or-equal `n`    |
+| `< n` / `<= n`  | numeric less-than / less-or-equal `n`          |
+| `contains v`    | the value (or a multiselect item) contains `v` |
+| `match <regex>` | the value matches the regular expression       |
 
 ## Card — `boards/<board-id>/NN-slug.md`
 
@@ -90,11 +106,12 @@ A sentence or two of description.
 
 - Only `column` is required. Optional frontmatter: `labels` (inline array),
   `priority` (`high` | `med` | `low`), `agent`, `live` (boolean), `status`,
-  `progress` (number), `comments` (number), `updatedAt`
-  (ISO string).
-- The body's first `# ` heading is the title. Everything between the title and a
-  `## Checklist` heading is the description. Checklist items are `- [ ]` /
-  `- [x]`.
+  `progress` (number), `updatedAt` (ISO string). There is no `comments`
+  frontmatter key — comments are a `## Comments` body section (below), and the
+  count badge is derived from its entries.
+- The body's first `# ` heading is the title. Everything between the title and
+  the first `## Checklist` / `## Gates` / `## Comments` heading is the
+  description. Checklist items are `- [ ]` / `- [x]`.
 - `NN` is a two-digit global order, contiguous from `01`; the slug after it is
   the card's identity. Frontmatter uses a small YAML subset — `key: value`
   pairs, inline `[a, b]` arrays, strings, numbers, and booleans.
@@ -103,18 +120,28 @@ A sentence or two of description.
   `blocked: true` (boolean), `due: 2026-07-20` (date), `areas: [core, ci]`
   (multiselect, inline-array form).
 - **Gate evidence** lives under a `## Gates` heading as task-list items, one per
-  satisfied `command` or `approval` gate, formatted
-  `- [x] <gateId> — <note> (<who>, <ISO time>)`:
+  satisfied **script** gate, formatted `- [x] <gateId> — <note> (<who>, <ISO time>)`.
+  Field gates need no evidence line — they evaluate live from frontmatter:
 
   ```md
   ## Gates
 
   - [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
-  - [x] peer-review — approved (jonathan, 2026-07-17T09:00:00Z)
   ```
 
   A human override is recorded on the same line with `OVERRIDDEN` and their name,
   keeping the bypass visible in the diff.
+- **Comments** are a `## Comments` work journal — one bullet per entry, oldest
+  first, formatted `- **<who>** (<ISO time>): <text>`. A `path:line` or
+  `path:start-end` token in the text (e.g. `src/core/store.ts:123`,
+  `src/panels/boardPanel.ts:40-60`) renders as a one-click link that opens the
+  file at that highlighted range:
+
+  ```md
+  ## Comments
+
+  - **claude** (2026-07-17T11:40:00.000Z): Added the export endpoint in src/export/router.ts:22-49 and covered it in src/export/router.test.ts:1-40.
+  ```
 
 ## Decision — `decisions/NN-slug.md`
 

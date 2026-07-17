@@ -26,8 +26,6 @@ renumbers the card files on disk so the `NN-` prefixes stay contiguous.
 - **Live progress**: while an agent is actively working a card it may set
   `live: true`, a one-line `status:`, and `progress: 0-100`. Nothing in the
   committed repo is left `live: true` — that flag is for an in-flight run only.
-- **Files touched**: list them under `files:` so reviewers can jump straight to
-  the code. Clicking a file in the card detail opens it in the editor.
 - **Checklists**: break a card into `- [ ]` / `- [x]` sub-steps under a
   `## Checklist` heading; tick them off as you go.
 
@@ -39,14 +37,27 @@ card enters **In Review**, and a peer review by Jonathan before it enters
 current column's `exit` gates) must be satisfied — otherwise the move is blocked
 and the card keeps its `status: blocked on gate: <gateId>`.
 
-- **Command gates** (`npm test`): run the check yourself and, on success, record
-  the result under a `## Gates` heading in the card as
-  `- [x] tests-passing — <result> (<you>, <ISO time>)`.
-- **Approval gates** naming a person are ticked only by that person — approving
-  from the card modal writes the evidence line under their git identity. Agents
-  never tick a human's approval.
-- **Overriding** a gate is allowed but recorded: the override line names who
+- **Script gates** (`tests-passing`, `npm test`): run the check yourself and, on
+  success, record the result under a `## Gates` heading in the card as
+  `- [x] tests-passing — <result> (<you>, <ISO time>)`. Never record a line for a
+  run that did not pass.
+- **Field gates** are satisfied by setting the field the gate checks. This
+  board's `peer-review` gate checks `reviewed-by = jonathan`, so approval is just
+  the `reviewed-by` select being set to `jonathan`. Agents never set a field that
+  encodes a human sign-off (`reviewed-by`, `approved-by`, …) — that value is the
+  named person's to set.
+- **Overriding** a gate is allowed but recorded: an `OVERRIDDEN` line names who
   bypassed it, so it shows up in the diff and in `git blame`.
+
+## Journal in comments
+
+Keep a running work journal in each card's `## Comments` section. Whenever you
+make meaningful progress, append an entry — `- **<who>** (<ISO time>): <what and
+why>` — oldest first, never rewriting earlier entries. Reference the code you
+touched inline as `path:line` or `path:start-end` (e.g. `src/core/store.ts:123`);
+RepoDoc turns those into one-click links that open the file at that exact range.
+The journal, not a bare count, is how the next person understands what happened
+on the card. The count badge is derived from these entries.
 
 Made a significant architectural choice while working a card? Add the next
 decision record and link it — see [Writing decisions](03-writing-decisions.md).

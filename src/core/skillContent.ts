@@ -44,13 +44,16 @@ Frontmatter keys (all optional except \`column\`):
 - \`live\` — \`true\` while you are actively working, else \`false\`/absent.
 - \`status\` — a one-line human summary of what you are doing right now.
 - \`progress\` — an integer 0-100.
-- \`comments\` — a NUMBER (the comment-count badge), not freeform text.
-  Note: list values (\`labels\`) must use the INLINE form \`[a, b]\` — block-style
-  YAML lists (\`- item\` on their own lines) are NOT parsed.
 - \`updatedAt\` — ISO timestamp; bump it on every edit.
 
-Body: a \`# Title\` heading, a short description, then a \`## Checklist\` of
-\`- [ ]\` task items.
+Note: list values (\`labels\`) must use the INLINE form \`[a, b]\` — block-style
+YAML lists (\`- item\` on their own lines) are NOT parsed. There is no
+\`comments\` frontmatter key — comments are a body section (see below).
+
+Body: a \`# Title\` heading, then a short description, then these OPTIONAL
+sections in order — \`## Checklist\` (\`- [ ]\` task items), \`## Gates\` (evidence
+for script gates), and \`## Comments\` (your work journal). The count badge on a
+card is derived from the \`## Comments\` entries.
 
 Example card (\`boards/project-backlog/03-add-csv-export.md\`):
 
@@ -74,7 +77,46 @@ Let users download their report data as CSV. See decisions/04-export-format.md.
 - [x] Design the CSV column mapping
 - [ ] Implement the export endpoint
 - [ ] Add tests
+
+## Comments
+
+- **claude** (2026-07-17T10:32:00.000Z): Mapped the report columns to CSV headers in src/export/csv.ts:14-38 and stubbed the endpoint; tests still to write.
 \`\`\`
+
+## Journal your work
+
+A card's \`## Comments\` section is a work JOURNAL — a durable, append-only
+narrative of what happened on the card and why. This is a core RepoDoc habit,
+not an optional extra.
+
+**By default, whenever you make meaningful progress on a card, append a journal
+entry to its \`## Comments\` section.** One entry per work session or meaningful
+step. Never rewrite or delete earlier entries — the history is the point.
+
+Each entry is a single task-less bullet:
+
+\`\`\`markdown
+## Comments
+
+- **<your-agent-key>** (<ISO time>): <what you did and why>
+\`\`\`
+
+Reference every file you touched inline as \`path:line\` or \`path:start-end\`,
+e.g. \`src/core/store.ts:123\` or \`src/panels/boardPanel.ts:40-60\`. RepoDoc turns
+these into one-click links that open the file at that exact highlighted range,
+so ALWAYS include the \`path:line\` when you mention code — never describe a change
+without pointing at where it lives.
+
+\`\`\`markdown
+## Comments
+
+- **claude** (2026-07-17T10:05:00.000Z): Wired the export endpoint in src/export/router.ts:22-49 and reused the CSV mapper at src/export/csv.ts:14. Endpoint returns 200 with the right headers; adding tests next.
+- **claude** (2026-07-17T11:40:00.000Z): Added coverage in src/export/csv.test.ts:1-64 — 6 cases, all green. Ready for review.
+\`\`\`
+
+Approvals and sign-off go through fields, not comments (see Workflow gates).
+The journal is for narrating the work; it is what a human — or the next agent —
+reads to understand the card without re-deriving its history.
 
 ## Custom fields
 
@@ -93,33 +135,60 @@ them, and preserve any existing value you do not recognise rather than dropping 
 
 1. Claim it: set \`agent: <your-key>\` and \`column: doing\`.
 2. While working: set \`live: true\`, a one-line \`status\`, and \`progress\`.
-3. Tick checklist items \`- [x]\` as you finish them.
+3. Tick checklist items \`- [x]\` as you finish them, and journal meaningful
+   progress to \`## Comments\` (see "Journal your work").
 4. When done: set \`column: review\` (a human moves it to \`done\`), set
    \`live: false\`, and remove \`status\`/\`progress\`.
 5. Always bump \`updatedAt\` on every change.
 
 ## Workflow gates
 
-A column may declare \`enter\` and/or \`exit\` gates in \`.config.json\` — named
-conditions of kind \`checklist\`, \`command\`, \`approval\`, or \`field\`. BEFORE you
+A column may declare \`enter\` and/or \`exit\` gates in \`.config.json\`. BEFORE you
 change a card's \`column\`, evaluate the target column's \`enter\` gates and the
-current column's \`exit\` gates, and only move the card if they pass:
+current column's \`exit\` gates, and only move the card if they all pass.
 
-- \`checklist\` / \`field\`: satisfy it for real — finish the checklist, or set the
-  field to the required value.
-- \`command\`: run the command; only on exit 0, record evidence in the card's
-  \`## Gates\` section.
-- \`approval\` naming humans: NEVER tick it yourself. If it is unsatisfied, leave
-  the card where it is and set \`status: blocked on gate: <gateId>\`.
+A gate has an \`id\`, an optional \`label\`, and exactly one of two kinds:
 
-Record satisfied command (and your own) gates as task-list lines under a
-\`## Gates\` heading: \`- [x] <gateId> — <one-line result> (<your-agent-key>, <ISO time>)\`.
+**script gates** (\`script\` is set) — a command that must have run green. Run the
+command yourself; ONLY when it exits 0, record an evidence line under the card's
+\`## Gates\` heading:
 
 \`\`\`markdown
 ## Gates
 
 - [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
 \`\`\`
+
+Format: \`- [x] <gateId> — <one-line result> (<your-agent-key>, <ISO time>)\`.
+Never record a line for a run that did not pass.
+
+**field gates** (\`field\` is set) — a live check against a card field. Satisfy it
+for REAL by setting that field (a flat frontmatter key) to a value the check
+accepts. The optional \`check\` expression uses this mini-syntax against the
+field's current value:
+
+| \`check\`        | passes when                                   |
+| -------------- | --------------------------------------------- |
+| *(absent)*     | the field is non-empty                        |
+| \`empty\`        | the field is empty / unset                    |
+| \`nonempty\`     | the field has any value                       |
+| \`= v\`          | the value equals \`v\`                          |
+| \`!= v\`         | the value does not equal \`v\`                  |
+| \`> n\` / \`>= n\` | numeric greater-than / greater-or-equal \`n\`   |
+| \`< n\` / \`<= n\` | numeric less-than / less-or-equal \`n\`         |
+| \`contains v\`   | the value (or a multiselect item) contains \`v\`|
+| \`match <re>\`   | the value matches the regular expression \`re\` |
+
+**Approvals are field gates.** A review sign-off is just a field the reviewer
+sets — e.g. a \`reviewed-by\` select checked with \`= jonathan\`. NEVER set a field
+whose gate clearly encodes a HUMAN sign-off (name heuristic: \`reviewed-by\`,
+\`approved-by\`, and the like) unless you are the person named. That is the human's
+to set.
+
+If a gate is unsatisfied and you cannot honestly satisfy it, stay put: leave the
+card in its column and set \`status: blocked on gate: <gateId>\`. A human may
+override a gate they cannot satisfy the normal way by recording an \`OVERRIDDEN\`
+line with their name under \`## Gates\`, keeping the bypass visible in the diff.
 
 ## Ordering
 

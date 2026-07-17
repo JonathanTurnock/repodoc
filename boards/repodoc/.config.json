@@ -9,7 +9,13 @@
       "name": "In Review",
       "color": "#d99a30",
       "enter": [
-        { "id": "tests-passing", "kind": "command", "run": "npm test", "label": "All tests passing" }
+        { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
+        { "id": "change-review", "script": "claude /change-review", "label": "change-review skill run" },
+        { "id": "clean-code-review", "script": "claude /clean-code-review", "label": "clean-code audit run" }
+      ],
+      "exit": [
+        { "id": "comments-addressed", "field": "comments-addressed", "check": "= true", "label": "All review comments addressed" },
+        { "id": "no-clean-code-violations", "script": "! grep -rn \"TODO: clean-code\" src media", "label": "No clean-code violations" }
       ]
     },
     {
@@ -17,13 +23,16 @@
       "name": "Done",
       "color": "#3fb27f",
       "enter": [
-        { "id": "peer-review", "kind": "approval", "by": ["jonathan"], "label": "Peer reviewed by Jonathan" }
+        { "id": "merged-to-main", "script": "git merge-base --is-ancestor HEAD origin/main", "label": "Merged into main" },
+        { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed by Jonathan" }
       ]
     }
   ],
   "fields": [
     { "id": "release", "label": "Release", "type": "select", "options": ["v0.1.0", "v0.2.0", "v0.3.0"], "showOnCard": true },
-    { "id": "effort", "label": "Effort", "type": "select", "options": ["S", "M", "L"] }
+    { "id": "effort", "label": "Effort", "type": "select", "options": ["S", "M", "L"] },
+    { "id": "reviewed-by", "label": "Reviewed by", "type": "select", "options": ["jonathan"] },
+    { "id": "comments-addressed", "label": "Comments addressed", "type": "boolean" }
   ],
   "labels": {
     "core": { "name": "core", "color": "#3fb27f" },

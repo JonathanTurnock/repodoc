@@ -3,6 +3,7 @@ import { markdownTitle, numPrefix, slugFromFileName } from './naming';
 import {
   Card,
   ChecklistItem,
+  CommentEntry,
   CustomFieldDef,
   CustomFieldValue,
   GateEvidence,
@@ -46,6 +47,10 @@ export function parseCard(
   if (gates.length) {
     card.gates = gates;
   }
+  const comments = findComments(body);
+  if (comments.length) {
+    card.comments = comments;
+  }
   const labels = asStringArray(data.labels);
   if (labels && labels.length) {
     card.labels = labels;
@@ -68,10 +73,6 @@ export function parseCard(
   const progress = asNumber(data.progress);
   if (progress !== undefined) {
     card.progress = progress;
-  }
-  const comments = asNumber(data.comments);
-  if (comments !== undefined) {
-    card.comments = comments;
   }
   const updatedAt = asString(data.updatedAt);
   if (updatedAt) {
@@ -100,7 +101,8 @@ export function parseCard(
 
 /**
  * Body text between the title heading and the first `## Checklist` / `## Gates`
- * heading (whichever comes first) — both terminate the description.
+ * / `## Comments` heading (whichever comes first) — each terminates the
+ * description.
  */
 function extractDescription(body: string): string {
   const lines = body.split('\n');
@@ -108,7 +110,7 @@ function extractDescription(body: string): string {
   const start = headingIdx === -1 ? 0 : headingIdx + 1;
   let end = lines.length;
   for (let i = start; i < lines.length; i++) {
-    if (/^##\s+(checklist|gates)\s*$/i.test(lines[i])) {
+    if (/^##\s+(checklist|gates|comments)\s*$/i.test(lines[i])) {
       end = i;
       break;
     }
@@ -183,6 +185,98 @@ export function findGates(body: string): { items: GateEvidence[]; indices: numbe
     indices.push(line.index);
   }
   return { items, indices };
+}
+
+/**
+ * Journal entries under the first `## Comments` heading, up to the next heading.
+ * Items are plain `- ` list lines (NOT task boxes). Continuation lines indented
+ * by 2+ spaces belong to the previous entry (joined with `\n`); a blank line
+ * ends the current entry. Each item is parsed by {@link parseCommentItem}.
+ */
+export function findComments(body: string): CommentEntry[] {
+  const lines = body.split('\n');
+  const entries: CommentEntry[] = [];
+  let inSection = false;
+  let current: string[] | null = null;
+
+  const flush = (): void => {
+    if (current !== null) {
+      entries.push(parseCommentItem(current.join('\n')));
+      current = null;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^##\s+comments\s*$/i.test(line)) {
+      inSection = true;
+      continue;
+    }
+    if (!inSection) {
+      continue;
+    }
+    if (/^#{1,6}\s+/.test(line)) {
+      break; // next heading ends the section
+    }
+    // New entries start with a TOP-LEVEL dash; an indented dash is a bullet
+    // inside the current entry's continuation, not a new entry.
+    const item = /^-\s+(.*)$/.exec(line);
+    if (item) {
+      flush();
+      current = [item[1]];
+    } else if (current !== null && /^\s{2,}\S/.test(line)) {
+      current.push(line.replace(/^\s{2}/, '')); // continuation (strip the indent)
+    } else if (line.trim() === '') {
+      // A blank line only ends the entry when what follows is NOT an indented
+      // continuation — multi-paragraph journal entries stay whole.
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() === '') {
+        j++;
+      }
+      if (current !== null && j < lines.length && /^\s{2,}\S/.test(lines[j])) {
+        current.push(''); // paragraph break inside the entry
+      } else {
+        flush();
+      }
+    } else {
+      flush(); // stray, non-item text ends the current entry
+    }
+  }
+  flush();
+  return entries;
+}
+
+/**
+ * Parse one comment item. Format `**who** (at): text`: `who` is a leading bold
+ * token, `at` the following parenthesized token, `text` the remainder after an
+ * optional `:`. Items without the bold prefix are treated as plain text (whole
+ * item is `text`, who/at undefined).
+ */
+function parseCommentItem(raw: string): CommentEntry {
+  let rest = raw;
+  let who: string | undefined;
+  let at: string | undefined;
+
+  const whoMatch = /^\*\*(.+?)\*\*\s*/.exec(rest);
+  if (whoMatch) {
+    who = whoMatch[1].trim();
+    rest = rest.slice(whoMatch[0].length);
+    const atMatch = /^\(([^)]*)\)\s*/.exec(rest);
+    if (atMatch) {
+      at = atMatch[1].trim();
+      rest = rest.slice(atMatch[0].length);
+    }
+    rest = rest.replace(/^:\s*/, '');
+  }
+
+  const entry: CommentEntry = { text: rest.trim() };
+  if (who !== undefined) {
+    entry.who = who;
+  }
+  if (at !== undefined) {
+    entry.at = at;
+  }
+  return entry;
 }
 
 /**

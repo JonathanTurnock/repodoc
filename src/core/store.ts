@@ -338,6 +338,30 @@ export class RepoDocStore {
     }
   }
 
+  // ---- comments ----
+
+  /**
+   * Appends a journal entry to a card's `## Comments` section as
+   * `- **<who>** (<ISO now>): <text>`. Multi-line text is written with its
+   * continuation lines indented two spaces. When the card has no `## Comments`
+   * section one is created at the end of the body (after any `## Gates`).
+   * Stamps `updatedAt` and fires; an unknown card is a silent no-op.
+   */
+  addComment(boardId: string, cardId: string, who: string, text: string): void {
+    const fileName = this.cardFileNames(boardId).find((n) => slugFromFileName(n) === cardId);
+    if (!fileName) {
+      return;
+    }
+    const at = this.now();
+    const changed = this.updateCardFile(boardId, fileName, (data, body) => ({
+      data,
+      body: appendCommentLine(body, who, at, text),
+    }));
+    if (changed) {
+      this.fire();
+    }
+  }
+
   // ---- gates ----
 
   /**
@@ -358,11 +382,6 @@ export class RepoDocStore {
     const entry = this.readBoardCards(boardId).find((e) => e.slug === cardId);
     const from = entry ? board.columns.find((c) => c.id === entry.column) : undefined;
     return evaluateTransition(card, from, to);
-  }
-
-  /** Records an approval for `gateId` on a card's `## Gates` section. */
-  recordGateApproval(boardId: string, cardId: string, gateId: string, who: string): void {
-    this.recordGate(boardId, cardId, gateId, `approved (${who}, ${this.now()})`);
   }
 
   /** Records a manual override for `gateId` on a card's `## Gates` section. */
@@ -548,6 +567,46 @@ function coerceFieldValue(
     default:
       return undefined;
   }
+}
+
+/**
+ * Appends a journal entry to the card body's `## Comments` section. The entry is
+ * `- **<who>** (<at>): <text>` with any continuation lines of a multi-line text
+ * indented two spaces. An existing section gets the entry appended after its
+ * last non-blank line; when absent, a `## Comments` section is created at the
+ * end of the body (which is after any `## Gates` section). Other bytes are kept.
+ */
+function appendCommentLine(body: string, who: string, at: string, text: string): string {
+  const textLines = text.split('\n');
+  // Continuations are indented two spaces; blank paragraph breaks stay truly
+  // empty (the parser keeps them inside the entry when a continuation follows).
+  const block = [
+    `- **${who}** (${at}): ${textLines[0]}`,
+    ...textLines.slice(1).map((l) => (l.trim() === '' ? '' : `  ${l}`)),
+  ].join('\n');
+
+  const lines = body.split('\n');
+  const headingIdx = lines.findIndex((l) => /^##\s+comments\s*$/i.test(l));
+  if (headingIdx === -1) {
+    const trimmed = body.replace(/\s+$/, '');
+    const prefix = trimmed.length ? `${trimmed}\n\n` : '';
+    return `${prefix}## Comments\n\n${block}\n`;
+  }
+
+  // Section spans from the heading to the next heading (or end of body).
+  let end = lines.length;
+  for (let i = headingIdx + 1; i < lines.length; i++) {
+    if (/^#{1,6}\s+/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  let insertAt = end;
+  while (insertAt > headingIdx + 1 && lines[insertAt - 1].trim() === '') {
+    insertAt--;
+  }
+  lines.splice(insertAt, 0, block);
+  return lines.join('\n');
 }
 
 const GATE_SEPARATOR = ' — ';

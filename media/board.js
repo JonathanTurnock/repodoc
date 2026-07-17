@@ -16,6 +16,7 @@
   };
 
   var addText = ''; // uncontrolled composer text; never triggers a render
+  var commentText = ''; // uncontrolled comment-composer text; never triggers a render
 
   /* ---- Drag state ---- */
   var drag = {
@@ -230,49 +231,168 @@
     return null;
   }
 
-  // Pure client-side mirror of the core gate semantics: does this card satisfy
-  // the given gate right now? (Used for the card-face n/m chip and modal icons;
-  // the host re-evaluates authoritatively on move.)
-  function gateSatisfied(card, def) {
-    switch (def.kind) {
-      case 'checklist':
-        return (card.checklist || []).every(function (x) {
-          return x.done;
-        });
-      case 'field': {
-        var val = (card.custom || {})[def.field];
-        if (def.equals != null) {
-          return String(val) === String(def.equals);
-        }
-        return (
-          val != null && val !== '' && !(Array.isArray(val) && val.length === 0)
-        );
-      }
-      case 'command':
-        return !!gateEvidence(card, def.id);
-      case 'approval': {
-        var by = def.by || [];
-        var gates = card.gates || [];
-        for (var i = 0; i < gates.length; i++) {
-          var g = gates[i];
-          if (g.gateId !== def.id || !g.done) {
-            continue;
-          }
-          if (!by.length) {
-            return true;
-          }
-          var note = String(g.note || '').toLowerCase();
-          for (var j = 0; j < by.length; j++) {
-            if (note.indexOf(String(by[j]).toLowerCase()) !== -1) {
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-      default:
-        return false;
+  // Resolve a gate's target field value: board custom fields first, then the
+  // reserved card keys (e.g. `priority`, `agent`) for reserved-id gates.
+  function fieldValue(card, fieldId) {
+    var custom = card.custom || {};
+    if (Object.prototype.hasOwnProperty.call(custom, fieldId)) {
+      return custom[fieldId];
     }
+    return card[fieldId];
+  }
+
+  // A value is "present" when non-null, non-blank, and (for arrays) non-empty.
+  function isPresent(value) {
+    if (value == null) {
+      return false;
+    }
+    if (Array.isArray(value)) {
+      return value.length > 0;
+    }
+    return String(value).trim() !== '';
+  }
+
+  // Strip a single layer of matching single/double quotes from a literal.
+  function unquote(s) {
+    var t = String(s == null ? '' : s).trim();
+    if (t.length >= 2) {
+      var f = t.charAt(0);
+      var l = t.charAt(t.length - 1);
+      if ((f === '"' && l === '"') || (f === "'" && l === "'")) {
+        return t.slice(1, -1);
+      }
+    }
+    return t;
+  }
+
+  // Client mirror of the core field-check mini-syntax. Supported checks:
+  //   absent | 'nonempty' → present ; 'empty' → not present ;
+  //   '= v' / '!= v' (arrays: exactly-one-element equality) ;
+  //   '> n' '>= n' '< n' '<= n' (numeric, parseFloat) ;
+  //   'contains v' (case-insensitive substring / array membership) ;
+  //   'match <regex>' (any array element; invalid regex → false).
+  function checkValue(value, check) {
+    // Mirrors src/core/gates.ts checkValue EXACTLY — any change must be made
+    // in both places.
+    var expr = String(check == null ? '' : check).trim();
+    var lower = expr.toLowerCase();
+    if (expr === '' || lower === 'nonempty') {
+      return isPresent(value);
+    }
+    if (lower === 'empty') {
+      return !isPresent(value);
+    }
+    var m;
+    if ((m = /^(contains|match)\b([\s\S]*)$/i.exec(expr))) {
+      var operand = unquote(m[2].trim());
+      if (m[1].toLowerCase() === 'contains') {
+        var needle = operand.toLowerCase();
+        if (Array.isArray(value)) {
+          return value.some(function (x) {
+            return String(x).toLowerCase() === needle;
+          });
+        }
+        if (value === undefined || value === null) {
+          return false;
+        }
+        return String(value).toLowerCase().indexOf(needle) !== -1;
+      }
+      var re;
+      try {
+        re = new RegExp(operand);
+      } catch (err) {
+        return false;
+      }
+      if (Array.isArray(value)) {
+        return value.some(function (x) {
+          return re.test(String(x));
+        });
+      }
+      if (value === undefined || value === null) {
+        return false;
+      }
+      return re.test(String(value));
+    }
+    if ((m = /^(!=|>=|<=|=|>|<)([\s\S]*)$/.exec(expr))) {
+      var op = m[1];
+      var target = unquote(m[2].trim());
+      if (op === '=' || op === '!=') {
+        var eq;
+        if (Array.isArray(value)) {
+          eq = value.length === 1 && String(value[0]) === target;
+        } else {
+          eq = value !== undefined && value !== null && String(value) === target;
+        }
+        return op === '=' ? eq : !eq;
+      }
+      var joined =
+        value === undefined || value === null
+          ? ''
+          : Array.isArray(value)
+            ? value.join(',')
+            : String(value);
+      var a = parseFloat(joined);
+      var b = parseFloat(target);
+      if (isNaN(a) || isNaN(b)) {
+        return false;
+      }
+      switch (op) {
+        case '>':
+          return a > b;
+        case '>=':
+          return a >= b;
+        case '<':
+          return a < b;
+        case '<=':
+          return a <= b;
+      }
+    }
+    return false;
+  }
+
+  // Pure client-side mirror of the core gate semantics: does this card satisfy
+  // the given gate right now? (Used for the card-face shield chips and modal
+  // icons; the host re-evaluates authoritatively on move.)
+  //  - field gate: evaluate the (custom/reserved) field against def.check;
+  //  - script gate: satisfied by a done `## Gates` evidence line for the id.
+  function gateSatisfied(card, def) {
+    if (def.field) {
+      return checkValue(fieldValue(card, def.field), def.check);
+    }
+    if (def.script) {
+      return !!gateEvidence(card, def.id);
+    }
+    return false;
+  }
+
+  // True when a gate's target field is editable from this board's Fields UI.
+  function fieldIsEditable(fieldId) {
+    return fieldDefs().some(function (d) {
+      return d.id === fieldId;
+    });
+  }
+
+  // Human display name for a field id (board label, else title-cased id).
+  function fieldDisplayName(fieldId) {
+    var defs = fieldDefs();
+    for (var i = 0; i < defs.length; i++) {
+      if (defs[i].id === fieldId) {
+        return fieldLabel(defs[i]);
+      }
+    }
+    return titleCase(fieldId);
+  }
+
+  // Readable phrasing of a field check for gate notes.
+  function describeCheck(check) {
+    var expr = String(check == null ? '' : check).trim();
+    if (expr === '' || expr === 'nonempty') {
+      return 'to be set';
+    }
+    if (expr === 'empty') {
+      return 'to be empty';
+    }
+    return expr;
   }
   function agentDef(key) {
     var agents = config().agents || {};
@@ -464,9 +584,12 @@
         ]),
       );
     }
-    if (card.comments) {
+    if (card.comments && card.comments.length) {
       meta.push(
-        h('span', { class: 'meta-item' }, [icon(ICON.comment, 'icon'), String(card.comments)]),
+        h('span', { class: 'meta-item' }, [
+          icon(ICON.comment, 'icon'),
+          String(card.comments.length),
+        ]),
       );
     }
     var gateChip = exitGateChip(card, col);
@@ -797,6 +920,128 @@
   }
 
 
+  // Scan comment text for file references (`path/to/file.ts`, optional `:12` or
+  // `:12-34`) and return a list of text nodes / clickable link spans / <br>s.
+  // Built with the DOM helper (never innerHTML): text nodes are inherently safe.
+  var FILE_REF_RE =
+    /(?:^|[\s(])((?:[\w.-]+\/)*[\w.-]+\.[A-Za-z]{1,8})(?::(\d+)(?:-(\d+))?)?/g;
+
+  function fileLink(token, path, line, endLine) {
+    var payload = { type: 'openFile', path: path };
+    if (line) {
+      payload.line = line;
+    }
+    if (endLine) {
+      payload.endLine = endLine;
+    }
+    return h(
+      'span',
+      {
+        class: 'file-link',
+        onClick: function () {
+          vscode.postMessage(payload);
+        },
+      },
+      token,
+    );
+  }
+
+  function appendLinkifiedLine(nodes, line) {
+    FILE_REF_RE.lastIndex = 0;
+    var last = 0;
+    var m;
+    while ((m = FILE_REF_RE.exec(line)) !== null) {
+      var path = m[1];
+      var startLine = m[2] ? parseInt(m[2], 10) : 0;
+      var endLine = m[3] ? parseInt(m[3], 10) : 0;
+      var token = path + (m[2] ? ':' + m[2] + (m[3] ? '-' + m[3] : '') : '');
+      var tokenStart = m.index + (m[0].length - token.length);
+      if (tokenStart > last) {
+        nodes.push(line.slice(last, tokenStart)); // plain text (incl. any prefix char)
+      }
+      nodes.push(fileLink(token, path, startLine, endLine));
+      last = tokenStart + token.length;
+    }
+    if (last < line.length) {
+      nodes.push(line.slice(last));
+    }
+  }
+
+  function linkifyFileRefs(text) {
+    var nodes = [];
+    var lines = String(text == null ? '' : text).split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      if (i > 0) {
+        nodes.push(h('br'));
+      }
+      appendLinkifiedLine(nodes, lines[i]);
+    }
+    return nodes;
+  }
+
+  function submitComment() {
+    var text = commentText.trim();
+    if (!text || !state.openCardId) {
+      return;
+    }
+    vscode.postMessage({ type: 'addComment', cardId: state.openCardId, text: text });
+    // Clear locally; the resulting data refresh brings the persisted entry.
+    commentText = '';
+    var ta = document.getElementById('comment-composer');
+    if (ta) {
+      ta.value = '';
+    }
+  }
+
+  function modalComments(card) {
+    var entries = Array.isArray(card.comments) ? card.comments : [];
+    var list = entries.map(function (entry) {
+      return h('div', { class: 'comment-entry' }, [
+        h('div', { class: 'comment-meta' }, [
+          h('span', { class: 'comment-who' }, entry.who || '—'),
+          h('span', { class: 'comment-time' }, humanizeTime(entry.at)),
+        ]),
+        h('div', { class: 'comment-text' }, linkifyFileRefs(entry.text || '')),
+      ]);
+    });
+
+    var textarea = h('textarea', {
+      id: 'comment-composer',
+      class: 'comment-input',
+      placeholder: 'Add a comment — journal what changed…',
+      onInput: function (e) {
+        commentText = e.target.value; // no render
+      },
+      onKeyDown: function (e) {
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          submitComment();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          commentText = '';
+          e.target.value = '';
+        }
+      },
+    });
+    textarea.value = commentText;
+
+    var composer = h('div', { class: 'comment-composer' }, [
+      textarea,
+      h('div', { class: 'comment-composer-actions' }, [
+        h('button', { class: 'btn-primary', onClick: submitComment }, 'Comment'),
+      ]),
+    ]);
+
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'comments-head' }, [
+        h('div', { class: 'field-label', style: 'margin-bottom:0;' }, 'Comments'),
+        h('span', { class: 'comments-count' }, String(entries.length)),
+      ]),
+      list.length ? h('div', { class: 'comment-list' }, list) : null,
+      composer,
+    ]);
+  }
+
   function postField(cardId, fieldId, value) {
     vscode.postMessage({ type: 'setField', cardId: cardId, fieldId: fieldId, value: value });
   }
@@ -923,42 +1168,23 @@
 
   // Human note under a gate row (requirement when unmet, evidence when met).
   function gateNote(card, def, sat) {
-    switch (def.kind) {
-      case 'checklist': {
-        var list = card.checklist || [];
-        var done = 0;
-        list.forEach(function (x) {
-          if (x.done) {
-            done++;
-          }
-        });
-        return 'Checklist ' + done + '/' + list.length;
+    if (def.field) {
+      var name = fieldDisplayName(def.field);
+      if (sat) {
+        var val = fieldValue(card, def.field);
+        var shown = Array.isArray(val) ? val.join(', ') : String(val == null ? '' : val);
+        return shown ? name + ': ' + shown : name + ' set';
       }
-      case 'field': {
-        var name = def.field || '';
-        if (def.equals != null) {
-          return 'Requires ' + name + ' = ' + def.equals;
-        }
-        return 'Requires ' + name + ' to be set';
-      }
-      case 'approval': {
-        var by = def.by || [];
-        if (sat) {
-          var ev = gateEvidence(card, def.id);
-          return 'Approved' + (ev && ev.note ? ' — ' + ev.note : '');
-        }
-        return by.length ? 'Needs approval by ' + by.join(', ') : 'Needs approval';
-      }
-      case 'command': {
-        if (sat) {
-          var e = gateEvidence(card, def.id);
-          return e && e.note ? e.note : 'Passed';
-        }
-        return 'Run: ' + (def.run || def.id);
-      }
-      default:
-        return '';
+      return 'Requires ' + name + ' ' + describeCheck(def.check);
     }
+    if (def.script) {
+      if (sat) {
+        var e = gateEvidence(card, def.id);
+        return e && e.note ? e.note : 'Passed';
+      }
+      return 'Run: ' + def.script;
+    }
+    return '';
   }
 
   function gateRow(card, def) {
@@ -970,26 +1196,12 @@
       h('div', { class: 'gate-label' }, gateLabel(def)),
       h('div', { class: 'gate-note' }, gateNote(card, def, sat)),
     ];
-    var rowChildren = [status, h('div', { class: 'gate-main' }, main)];
-    if (def.kind === 'approval' && !sat) {
-      rowChildren.push(
-        h(
-          'button',
-          {
-            class: 'btn-primary gate-approve',
-            onClick: function () {
-              vscode.postMessage({
-                type: 'approveGate',
-                cardId: state.openCardId,
-                gateId: def.id,
-              });
-            },
-          },
-          'Approve',
-        ),
-      );
+    // Unsatisfied field gates whose field is editable here point at the Fields
+    // section rather than offering an inline action.
+    if (!sat && def.field && fieldIsEditable(def.field)) {
+      main.push(h('div', { class: 'gate-hint' }, 'set via Fields above'));
     }
-    return h('div', { class: 'gate-row' }, rowChildren);
+    return h('div', { class: 'gate-row' }, [status, h('div', { class: 'gate-main' }, main)]);
   }
 
   function modalGates(card, col) {
@@ -1041,6 +1253,7 @@
       modalFields(card),
       modalChecklist(card),
       modalGates(card, col),
+      modalComments(card),
     ];
 
     var panel = h(

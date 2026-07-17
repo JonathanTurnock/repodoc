@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml } from './webviewHtml';
 import {
@@ -189,14 +190,37 @@ export class BoardPanel {
         }
         break;
       }
-      case 'approveGate': {
-        if (typeof m.cardId === 'string' && typeof m.gateId === 'string') {
-          this.store.recordGateApproval(
-            this.boardId,
-            m.cardId,
-            m.gateId,
-            localIdentity(this.store.root),
-          );
+      case 'addComment': {
+        if (typeof m.cardId === 'string' && typeof m.text === 'string') {
+          const text = m.text.trim();
+          if (text) {
+            this.store.addComment(
+              this.boardId,
+              m.cardId,
+              localIdentity(this.store.root),
+              text,
+            );
+          }
+        }
+        break;
+      }
+      case 'openFile': {
+        if (typeof m.path === 'string') {
+          const line = m.line;
+          const endLine = m.endLine;
+          const lineOk =
+            line === undefined ||
+            (typeof line === 'number' && isFinite(line) && line > 0);
+          const endOk =
+            endLine === undefined ||
+            (typeof endLine === 'number' && isFinite(endLine) && endLine > 0);
+          if (lineOk && endOk) {
+            void this.openFile(
+              m.path,
+              typeof line === 'number' ? line : undefined,
+              typeof endLine === 'number' ? endLine : undefined,
+            );
+          }
         }
         break;
       }
@@ -260,6 +284,36 @@ export class BoardPanel {
       }
     }
     this.store.moveCard(this.boardId, cardId, toColumn, index);
+  }
+
+  /**
+   * Open a repo file referenced from a comment link and reveal an optional line
+   * range. The path is resolved against — and containment-checked to — the store
+   * root; anything outside it (or any failure) is ignored with a warning.
+   */
+  private async openFile(rel: string, line?: number, endLine?: number): Promise<void> {
+    const root = this.store.root;
+    if (!root) {
+      return;
+    }
+    try {
+      const rootResolved = path.resolve(root);
+      const abs = path.resolve(rootResolved, rel);
+      if (abs !== rootResolved && !abs.startsWith(rootResolved + path.sep)) {
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(abs));
+      const editor = await vscode.window.showTextDocument(doc);
+      if (line !== undefined) {
+        const start = new vscode.Position(Math.max(0, line - 1), 0);
+        const end = new vscode.Position(Math.max(0, endLine ?? line), 0);
+        const selection = new vscode.Selection(start, end);
+        editor.selection = selection;
+        editor.revealRange(selection, vscode.TextEditorRevealType.InCenter);
+      }
+    } catch {
+      void vscode.window.showWarningMessage(`RepoDoc: could not open ${rel}`);
+    }
   }
 
   private async promptAddColumn(): Promise<void> {

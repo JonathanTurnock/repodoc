@@ -1,7 +1,10 @@
 # Change Log
 
-## [Unreleased]
+## [0.3.0] — 2026-07-17
 
+- **Workflow gates** — columns declare `enter`/`exit` conditions in the board config: `script` gates (a command that must have run green, evidence recorded in the card's `## Gates` section) and `field` gates (checked live via a mini-syntax: `= v`, `!= v`, `contains v`, `match re`, numeric comparisons, `empty`/`nonempty`). Blocked drags show which gates fail, with a recorded override; agents honor gates via the skill. Approvals are plain field edits (e.g. a `reviewed-by` dropdown) guarded by a field gate.
+- **Custom card fields** — boards define typed fields (text, number, boolean, date, select, multiselect) in `.config.json`; values live flat in card frontmatter; the card modal renders native editors (theme-styled dropdowns included) and `showOnCard` fields appear as chips.
+- **Comments are a work journal** — the card's `## Comments` section holds authored, timestamped entries; agents journal their work by default per the skill. File references like `src/core/store.ts:123` (or `:12-34`) are one-click links opening the file with the range highlighted.
 - Skill files are no longer rewritten silently on activation — a notice with an **Update** button offers the sync instead.
 - **Decision frontmatter** — decision records now carry `status:` and `date:` in YAML frontmatter (the rendered view shows them under the title); the legacy body `**Status:**` line is no longer parsed.
 - All webview styles use VS Code theme tokens directly — the design-hex `var()` fallbacks are gone (prerelease, no legacy surface to support).

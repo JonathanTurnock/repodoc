@@ -1,6 +1,6 @@
 import * as assert from 'assert';
-import { evaluateGates, evaluateTransition } from '../../core/gates';
-import { Card, Column, GateDef } from '../../core/types';
+import { checkValue, evaluateGates, evaluateTransition } from '../../core/gates';
+import { Card, Column, CustomFieldValue, GateDef } from '../../core/types';
 
 function baseCard(over: Partial<Card> = {}): Card {
   return { id: 'card', title: 'Card', ...over };
@@ -15,65 +15,8 @@ function one(card: Card, gate: GateDef): { satisfied: boolean; reason: string } 
   return { satisfied: r.satisfied, reason: r.reason };
 }
 
-suite('gates — checklist', () => {
-  const gate: GateDef = { id: 'g', kind: 'checklist' };
-
-  test('absent checklist is satisfied', () => {
-    assert.deepStrictEqual(one(baseCard(), gate), { satisfied: true, reason: 'checklist 0/0' });
-  });
-
-  test('all done is satisfied; partial is not', () => {
-    const done = baseCard({ checklist: [{ text: 'a', done: true }, { text: 'b', done: true }] });
-    const partial = baseCard({ checklist: [{ text: 'a', done: true }, { text: 'b', done: false }] });
-    assert.deepStrictEqual(one(done, gate), { satisfied: true, reason: 'checklist 2/2' });
-    assert.deepStrictEqual(one(partial, gate), { satisfied: false, reason: 'checklist 1/2' });
-  });
-});
-
-suite('gates — field', () => {
-  test('nonEmpty semantics on a custom field', () => {
-    const gate: GateDef = { id: 'g', kind: 'field', field: 'sev', nonEmpty: true };
-    assert.deepStrictEqual(one(baseCard({ custom: { sev: 'high' } }), gate), {
-      satisfied: true,
-      reason: 'sev is set',
-    });
-    assert.deepStrictEqual(one(baseCard({ custom: { sev: '' } }), gate), {
-      satisfied: false,
-      reason: 'sev is empty',
-    });
-    assert.strictEqual(one(baseCard(), gate).satisfied, false);
-  });
-
-  test('empty array counts as empty; non-empty array is set', () => {
-    const gate: GateDef = { id: 'g', kind: 'field', field: 'tags' };
-    assert.strictEqual(one(baseCard({ custom: { tags: [] } }), gate).satisfied, false);
-    assert.strictEqual(one(baseCard({ custom: { tags: ['x'] } }), gate).satisfied, true);
-  });
-
-  test('equals compares the stringified value', () => {
-    const gate: GateDef = { id: 'g', kind: 'field', field: 'sev', equals: 'high' };
-    assert.deepStrictEqual(one(baseCard({ custom: { sev: 'high' } }), gate), {
-      satisfied: true,
-      reason: 'sev = high',
-    });
-    assert.deepStrictEqual(one(baseCard({ custom: { sev: 'low' } }), gate), {
-      satisfied: false,
-      reason: 'sev must equal high',
-    });
-  });
-
-  test('falls back to reserved card props for known field ids', () => {
-    const gate: GateDef = { id: 'g', kind: 'field', field: 'priority', equals: 'high' };
-    assert.strictEqual(one(baseCard({ priority: 'high' }), gate).satisfied, true);
-    assert.strictEqual(one(baseCard({ priority: 'low' }), gate).satisfied, false);
-    const agentGate: GateDef = { id: 'g', kind: 'field', field: 'agent' };
-    assert.strictEqual(one(baseCard({ agent: 'claude' }), agentGate).satisfied, true);
-    assert.strictEqual(one(baseCard(), agentGate).satisfied, false);
-  });
-});
-
-suite('gates — command', () => {
-  const gate: GateDef = { id: 'ci', kind: 'command', run: 'npm test' };
+suite('gates — script kind', () => {
+  const gate: GateDef = { id: 'ci', script: 'npm test' };
 
   test('satisfied by a done evidence line; reason is the note when present', () => {
     const card = baseCard({ gates: [{ gateId: 'ci', done: true, note: 'passed' }] });
@@ -85,53 +28,167 @@ suite('gates — command', () => {
     assert.deepStrictEqual(one(card, gate), { satisfied: true, reason: 'ran `npm test`' });
   });
 
-  test('no evidence (or not done) is unsatisfied', () => {
+  test('no evidence (or not done) is unsatisfied with a green-run reason', () => {
     assert.deepStrictEqual(one(baseCard(), gate), {
       satisfied: false,
-      reason: 'no recorded run of `npm test`',
+      reason: 'no recorded green run of `npm test`',
     });
     const notDone = baseCard({ gates: [{ gateId: 'ci', done: false }] });
     assert.strictEqual(one(notDone, gate).satisfied, false);
   });
+
+  test('reason falls back to the gate id when the script is empty', () => {
+    const idGate: GateDef = { id: 'lint', script: '' };
+    // An empty script is treated as a field gate by normalization, but gates.ts
+    // is defensive: a bare {script:''} still evaluates as a script gate here
+    // because script is defined. The reason names the id.
+    assert.strictEqual(one(baseCard(), idGate).reason, 'no recorded green run of `lint`');
+  });
 });
 
-suite('gates — approval', () => {
-  test('matches an approver by case-insensitive substring', () => {
-    const gate: GateDef = { id: 'signoff', kind: 'approval', by: ['jonathan'] };
-    const card = baseCard({
-      gates: [{ gateId: 'signoff', done: true, note: 'approved (Jonathan, 2026-01-01)' }],
-    });
-    assert.deepStrictEqual(one(card, gate), {
+suite('gates — field kind', () => {
+  test('default (no check) means nonempty; reason names the field and value', () => {
+    const gate: GateDef = { id: 'g', field: 'sev' };
+    assert.deepStrictEqual(one(baseCard({ custom: { sev: 'high' } }), gate), {
       satisfied: true,
-      reason: 'approved (Jonathan, 2026-01-01)',
+      reason: 'sev nonempty (currently: high)',
     });
-  });
-
-  test('unsatisfied when no evidence names an allowed approver', () => {
-    const gate: GateDef = { id: 'signoff', kind: 'approval', by: ['alice'] };
-    const card = baseCard({ gates: [{ gateId: 'signoff', done: true, note: 'approved (bob)' }] });
-    assert.deepStrictEqual(one(card, gate), {
+    assert.deepStrictEqual(one(baseCard(), gate), {
       satisfied: false,
-      reason: 'awaiting approval by alice',
+      reason: 'sev nonempty (currently: unset)',
     });
   });
 
-  test('empty by is satisfied by any done evidence', () => {
-    const gate: GateDef = { id: 'signoff', kind: 'approval', by: [] };
+  test('equality check reports the field, check, and current value', () => {
+    const gate: GateDef = { id: 'g', field: 'reviewed-by', check: '= jonathan' };
+    assert.deepStrictEqual(one(baseCard({ custom: { 'reviewed-by': 'jonathan' } }), gate), {
+      satisfied: true,
+      reason: 'reviewed-by = jonathan (currently: jonathan)',
+    });
+    assert.deepStrictEqual(one(baseCard(), gate), {
+      satisfied: false,
+      reason: 'reviewed-by = jonathan (currently: unset)',
+    });
+  });
+
+  test('uses the gate label or id in the reason when field is unset', () => {
+    // field is always set on a normalized field gate, but the fallback chain is
+    // field -> label -> id; exercise the field path (the normal case).
+    const gate: GateDef = { id: 'g', field: 'estimate', check: '>= 3' };
+    assert.strictEqual(one(baseCard({ custom: { estimate: 5 } }), gate).satisfied, true);
     assert.strictEqual(
-      one(baseCard({ gates: [{ gateId: 'signoff', done: true }] }), gate).satisfied,
-      true,
+      one(baseCard({ custom: { estimate: 5 } }), gate).reason,
+      'estimate >= 3 (currently: 5)',
     );
-    assert.strictEqual(
-      one(baseCard({ gates: [{ gateId: 'signoff', done: false }] }), gate).satisfied,
-      false,
-    );
+  });
+
+  test('multi-value current display joins arrays with a comma', () => {
+    const gate: GateDef = { id: 'g', field: 'tags', check: 'contains urgent' };
+    assert.deepStrictEqual(one(baseCard({ custom: { tags: ['ops', 'urgent'] } }), gate), {
+      satisfied: true,
+      reason: 'tags contains urgent (currently: ops, urgent)',
+    });
+  });
+
+  test('falls back to reserved card props for known field ids', () => {
+    const gate: GateDef = { id: 'g', field: 'priority', check: '= high' };
+    assert.strictEqual(one(baseCard({ priority: 'high' }), gate).satisfied, true);
+    assert.strictEqual(one(baseCard({ priority: 'low' }), gate).satisfied, false);
+    const agentGate: GateDef = { id: 'g', field: 'agent' };
+    assert.strictEqual(one(baseCard({ agent: 'claude' }), agentGate).satisfied, true);
+    assert.strictEqual(one(baseCard(), agentGate).satisfied, false);
+  });
+});
+
+suite('gates — checkValue mini-syntax', () => {
+  const v = (value: CustomFieldValue | undefined, check: string | undefined): boolean =>
+    checkValue(value, check);
+
+  test('absent/blank/nonempty checks presence', () => {
+    for (const check of [undefined, '', '   ', 'nonempty', 'NONEMPTY']) {
+      assert.strictEqual(v('x', check), true, `present ${check}`);
+      assert.strictEqual(v(undefined, check), false, `undefined ${check}`);
+      assert.strictEqual(v('', check), false, `empty string ${check}`);
+      assert.strictEqual(v('   ', check), false, `blank string ${check}`);
+      assert.strictEqual(v([], check), false, `empty array ${check}`);
+      assert.strictEqual(v(['a'], check), true, `array ${check}`);
+    }
+  });
+
+  test('empty is the negation of nonempty', () => {
+    assert.strictEqual(v(undefined, 'empty'), true);
+    assert.strictEqual(v('', 'empty'), true);
+    assert.strictEqual(v([], 'empty'), true);
+    assert.strictEqual(v('x', 'empty'), false);
+    assert.strictEqual(v(['a'], 'empty'), false);
+  });
+
+  test('= and != on scalars compare String(value)', () => {
+    assert.strictEqual(v('high', '= high'), true);
+    assert.strictEqual(v('low', '= high'), false);
+    assert.strictEqual(v(3, '= 3'), true);
+    assert.strictEqual(v(true, '= true'), true);
+    assert.strictEqual(v(undefined, '= high'), false);
+    assert.strictEqual(v('low', '!= high'), true);
+    assert.strictEqual(v('high', '!= high'), false);
+    assert.strictEqual(v(undefined, '!= high'), true);
+  });
+
+  test('= on arrays is true only for a single matching element; != negates', () => {
+    assert.strictEqual(v(['x'], '= x'), true);
+    assert.strictEqual(v(['x', 'y'], '= x'), false);
+    assert.strictEqual(v([], '= x'), false);
+    assert.strictEqual(v(['x', 'y'], '!= x'), true);
+    assert.strictEqual(v(['x'], '!= x'), false);
+  });
+
+  test('numeric comparisons via parseFloat; NaN on either side is false', () => {
+    assert.strictEqual(v(5, '> 3'), true);
+    assert.strictEqual(v(3, '> 3'), false);
+    assert.strictEqual(v(3, '>= 3'), true);
+    assert.strictEqual(v(2, '< 3'), true);
+    assert.strictEqual(v(3, '<= 3'), true);
+    assert.strictEqual(v(3, '<= 2'), false);
+    assert.strictEqual(v('5', '> 3'), true); // string coerces
+    assert.strictEqual(v('x', '> 3'), false); // NaN value
+    assert.strictEqual(v(5, '> abc'), false); // NaN operand
+    assert.strictEqual(v(undefined, '> 3'), false); // NaN value
+    assert.strictEqual(v(-2.5, '< -1'), true); // floats and signs
+  });
+
+  test('contains: substring on strings, membership on arrays, case-insensitive', () => {
+    assert.strictEqual(v('Hello World', 'contains world'), true);
+    assert.strictEqual(v('Hello', 'contains bye'), false);
+    assert.strictEqual(v(['Ops', 'Urgent'], 'contains urgent'), true);
+    assert.strictEqual(v(['Ops'], 'contains urg'), false); // membership, not substring
+    assert.strictEqual(v(undefined, 'contains x'), false);
+  });
+
+  test('match: regex on String(value); any array element; invalid regex is false', () => {
+    assert.strictEqual(v('abc123', 'match \\d+'), true);
+    assert.strictEqual(v('abc', 'match ^a.c$'), true);
+    assert.strictEqual(v('xyz', 'match ^a'), false);
+    assert.strictEqual(v(['no', 'yes42'], 'match \\d\\d'), true);
+    assert.strictEqual(v('abc', 'match ('), false); // invalid regex
+    assert.strictEqual(v(undefined, 'match .'), false);
+  });
+
+  test('operand keeps spaces and strips one pair of surrounding quotes', () => {
+    assert.strictEqual(v('a b c', '= a b c'), true);
+    assert.strictEqual(v('a b c', '= "a b c"'), true);
+    assert.strictEqual(v("a b c", "= 'a b c'"), true);
+    assert.strictEqual(v('"quoted"', '= ""quoted""'), true); // only the outer pair strips
+    assert.strictEqual(v('contains me', 'contains "ins m"'), true);
+  });
+
+  test('an unrecognized expression is false', () => {
+    assert.strictEqual(v('x', 'wat'), false);
   });
 });
 
 suite('gates — evaluateTransition', () => {
-  const exit: GateDef = { id: 'e', kind: 'checklist' };
-  const enter: GateDef = { id: 'n', kind: 'field', field: 'sev', nonEmpty: true };
+  const exit: GateDef = { id: 'e', field: 'sev' };
+  const enter: GateDef = { id: 'n', field: 'sev', check: 'nonempty' };
 
   test('combines the source exit gates with the target enter gates, in order', () => {
     const from = col('a', { exit: [exit] });

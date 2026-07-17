@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { findGates, parseCard } from '../../core/cardParse';
+import { findComments, findGates, parseCard } from '../../core/cardParse';
 import { CustomFieldDef } from '../../core/types';
 
 const FIELDS: CustomFieldDef[] = [
@@ -96,5 +96,114 @@ suite('cardParse — gates evidence', () => {
   test('a card with no gates section has no gates', () => {
     const c = card('column: todo', '# Card\n\nJust text.\n');
     assert.strictEqual(c.gates, undefined);
+  });
+});
+
+suite('cardParse — comments journal', () => {
+  test('parses who / at / text from the full bold-token format', () => {
+    const body =
+      '# Card\n\n## Comments\n\n' +
+      '- **jonathan** (2026-07-17T10:00:00.000Z): Kicked off the work.\n' +
+      '- **claude** (2026-07-17T11:00:00.000Z): Edited src/core/store.ts:12.\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [
+      { who: 'jonathan', at: '2026-07-17T10:00:00.000Z', text: 'Kicked off the work.' },
+      { who: 'claude', at: '2026-07-17T11:00:00.000Z', text: 'Edited src/core/store.ts:12.' },
+    ]);
+  });
+
+  test('tolerates plain-text items (who/at undefined, whole item is text)', () => {
+    const body = '# Card\n\n## Comments\n\n- just a plain note\n- **bob** left without a colon\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [
+      { text: 'just a plain note' },
+      { who: 'bob', text: 'left without a colon' },
+    ]);
+  });
+
+  test('a bold+paren item without a colon still splits who/at from text', () => {
+    const body = '# Card\n\n## Comments\n\n- **ann** (t1) no colon here\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [{ who: 'ann', at: 't1', text: 'no colon here' }]);
+  });
+
+  test('continuation lines indented 2+ spaces join onto the previous entry', () => {
+    const body =
+      '# Card\n\n## Comments\n\n' +
+      '- **claude** (t1): line one\n' +
+      '  line two\n' +
+      '  line three\n' +
+      '- **claude** (t2): standalone\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [
+      { who: 'claude', at: 't1', text: 'line one\nline two\nline three' },
+      { who: 'claude', at: 't2', text: 'standalone' },
+    ]);
+  });
+
+  test('a blank line ends the current entry', () => {
+    const body = '# Card\n\n## Comments\n\n- **a** (t): first\n\n- **b** (t): second\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [
+      { who: 'a', at: 't', text: 'first' },
+      { who: 'b', at: 't', text: 'second' },
+    ]);
+  });
+
+  test('the comments section ends at the next heading', () => {
+    const body =
+      '# Card\n\n## Comments\n\n- **a** (t): note\n\n## Checklist\n\n- [ ] x\n';
+    const c = card('column: todo', body);
+    assert.deepStrictEqual(c.comments, [{ who: 'a', at: 't', text: 'note' }]);
+    assert.deepStrictEqual(c.checklist, [{ text: 'x', done: false }]);
+  });
+
+  test('a card with no comments section has no comments', () => {
+    const c = card('column: todo', '# Card\n\nJust text.\n');
+    assert.strictEqual(c.comments, undefined);
+  });
+
+  test('a frontmatter comments number is ignored (no comments parsed from it)', () => {
+    const c = card('column: todo\ncomments: 5', '# Card\n\nJust text.\n');
+    assert.strictEqual(c.comments, undefined);
+  });
+
+  test('description stops at ## Comments', () => {
+    const body = '# Card\n\nDesc line.\n\n## Comments\n\n- **a** (t): hi\n';
+    const c = card('column: todo', body);
+    assert.strictEqual(c.desc, 'Desc line.');
+  });
+});
+
+suite('cardParse comments — round-trip edge cases (review-gate fixes)', () => {
+  test('multi-paragraph entries survive a blank paragraph break', () => {
+    const body = [
+      '# T',
+      '',
+      '## Comments',
+      '',
+      '- **claude** (2026-07-17T01:00:00Z): para one',
+      '',
+      '  para two',
+      '',
+    ].join('\n');
+    const entries = findComments(body);
+    assert.strictEqual(entries.length, 1);
+    assert.strictEqual(entries[0].text, 'para one\n\npara two');
+  });
+
+  test('an indented dash is a bullet inside the entry, not a new entry', () => {
+    const body = [
+      '# T',
+      '',
+      '## Comments',
+      '',
+      '- **claude** (2026-07-17T01:00:00Z): summary',
+      '  - bullet detail',
+      '',
+    ].join('\n');
+    const entries = findComments(body);
+    assert.strictEqual(entries.length, 1);
+    assert.strictEqual(entries[0].text, 'summary\n- bullet detail');
   });
 });

@@ -37,7 +37,7 @@ export function seedCards(stamp: string): Array<{ name: string; content: string 
     {
       name: '03-write-your-first-decision.md',
       content:
-        `---\ncolumn: todo\nlabels: [docs]\npriority: med\ncomments: 2\nupdatedAt: ${stamp}\n---\n` +
+        `---\ncolumn: todo\nlabels: [docs]\npriority: med\nupdatedAt: ${stamp}\n---\n` +
         `# Write your first decision record\n\n` +
         `Decision records capture the *why* behind architectural choices, numbered under ` +
         `\`decisions/\`.\n\n` +
@@ -51,13 +51,15 @@ export function seedCards(stamp: string): Array<{ name: string; content: string 
       content:
         `---\ncolumn: doing\nlabels: [backend, infra]\npriority: high\nagent: claude\n` +
         `live: true\nstatus: editing src/core/store.ts\nprogress: 62\n` +
-        `files: [src/core/store.ts]\ncomments: 3\nupdatedAt: ${stamp}\n---\n` +
+        `files: [src/core/store.ts]\nupdatedAt: ${stamp}\n---\n` +
         `# Assign a card to a coding agent\n\n` +
         `Agents pick up assigned cards, report live status, and list the files they touch.\n\n` +
         `## Checklist\n\n` +
         `- [x] Assign the card\n` +
         `- [x] Agent starts working\n` +
-        `- [ ] Review the result\n`,
+        `- [ ] Review the result\n\n` +
+        `## Comments\n\n` +
+        `- **claude** (${stamp}): Picked up the card and started editing \`src/core/store.ts\`.\n`,
     },
     {
       name: '05-review-before-done.md',

@@ -73,11 +73,23 @@ export interface SetFieldMessage {
   value: CustomFieldValue | null;
 }
 
-/** Record the local identity's approval of an approval gate. */
-export interface ApproveGateMessage {
-  type: 'approveGate';
+/** Append a journal entry to a card's `## Comments` section. */
+export interface AddCommentMessage {
+  type: 'addComment';
   cardId: string;
-  gateId: string;
+  text: string;
+}
+
+/**
+ * Open a repo file (optionally revealing a line range) from a comment link.
+ * `path` is relative to the store root; the host containment-checks it before
+ * opening. `line`/`endLine` are 1-based.
+ */
+export interface OpenFileMessage {
+  type: 'openFile';
+  path: string;
+  line?: number;
+  endLine?: number;
 }
 
 export interface AddCardMessage {
@@ -103,4 +115,5 @@ export type WebviewToHostMessage =
   | AddColumnMessage
   | ToggleCheckMessage
   | SetFieldMessage
-  | ApproveGateMessage;
+  | AddCommentMessage
+  | OpenFileMessage;

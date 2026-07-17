@@ -39,24 +39,38 @@ export interface CustomFieldDef {
 
 export type CustomFieldValue = string | number | boolean | string[];
 
-export type GateKind = 'checklist' | 'command' | 'approval' | 'field';
-
-/** A named condition on a column transition, declared per column in config. */
+/**
+ * A named condition on a column transition, declared per column in config.
+ * Exactly one of `script` / `field` is set:
+ *  - script: a command that must have run green; satisfied by a done evidence
+ *    line for the gate id in the card's `## Gates` section.
+ *  - field: evaluated live against the card's (custom or reserved) field value
+ *    using the `check` mini-syntax: absent → nonempty; `empty` | `nonempty` |
+ *    `= v` | `!= v` | `> n` | `>= n` | `< n` | `<= n` | `contains v` |
+ *    `match <regex>`.
+ */
 export interface GateDef {
   id: string;
-  kind: GateKind;
   /** Human label — falls back to the id. */
   label?: string;
-  /** command: the check to run (evidence-based in v1). */
-  run?: string;
-  /** approval: identities allowed to approve. */
-  by?: string[];
-  /** field: the custom-field (or reserved-field) id the gate inspects. */
+  /** The command this gate requires a green run of. */
+  script?: string;
+  /** The custom-field (or reserved-field) id the gate inspects. */
   field?: string;
-  /** field: satisfied when the field has any value. */
-  nonEmpty?: boolean;
-  /** field: satisfied when the field equals this value. */
-  equals?: string;
+  /** Field check expression (see mini-syntax above). */
+  check?: string;
+}
+
+/**
+ * One entry of the card's `## Comments` journal section:
+ * `- **who** (ISO time): text`. Agents journal their work here; text may
+ * reference files as `path/to/file.ts:12` or `:12-34`, which the UI renders
+ * as one-click links opening the file at that highlighted range.
+ */
+export interface CommentEntry {
+  who?: string;
+  at?: string;
+  text: string;
 }
 
 /** One line of the card's `## Gates` section: `- [x] <gateId> — <note>`. */
@@ -101,7 +115,8 @@ export interface Card {
   status?: string;
   /** Live progress 0-100. */
   progress?: number;
-  comments?: number;
+  /** Journal entries from the card's `## Comments` section, in file order. */
+  comments?: CommentEntry[];
   desc?: string;
   checklist?: ChecklistItem[];
   /** Values of board-defined custom fields, keyed by field id, typed per def. */

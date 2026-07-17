@@ -30,7 +30,16 @@ Click a card for the full picture — priority, live agent status, description, 
 
 ## Workflows with gates
 
-Columns can declare **enter/exit gates** — conditions a card must satisfy to move. A gate can require a passing command, a complete checklist, a filled-in field, or a named person's approval. On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** without a peer review — the agent records the evidence in the card's `## Gates` section, and approvals are signed by the reviewer's git identity. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
+Columns can declare **enter/exit gates** — conditions a card must satisfy to move. A gate is one of two kinds: a **script** gate requires a command to have run green (the agent records the evidence in the card's `## Gates` section), or a **field** gate checks a card field live via a small `check` syntax (`= v`, `>= n`, `contains v`, `match <re>`, …). Approvals are just field gates — a reviewer sets a field the gate checks.
+
+```json
+"enter": [
+  { "id": "tests-passing", "script": "npm test", "label": "All tests passing" },
+  { "id": "peer-review", "field": "reviewed-by", "check": "= jonathan", "label": "Peer reviewed" }
+]
+```
+
+On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** until `reviewed-by` is set to `jonathan`. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
 
 ## Decision records
 
@@ -67,6 +76,7 @@ Tell your agent the conventions once (or drop them in your agent instructions fi
 - Report progress with `live: true`, `status: <one-liner>`, `progress: 0-100`.
 - Tick checklist items (`- [x]`) as you complete them.
 - Set any **custom fields** the board defines (e.g. `release: v0.2.0`, `estimate: 5`) as flat frontmatter keys.
+- Journal your work in the card's `## Comments` section — one entry per meaningful step (`- **<you>** (<ISO>): <what and why>`), citing the code you touched as `path:line` (e.g. `src/core/store.ts:123`). RepoDoc turns those into one-click links that open the file at that range.
 - Made a significant choice? Add the next `decisions/NN-*.md` and link it from the card.
 
 RepoDoc watches the files and updates the board live.

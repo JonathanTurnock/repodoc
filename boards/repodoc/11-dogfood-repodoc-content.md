@@ -23,4 +23,11 @@ through the same core the extension uses.
 
 ## Gates
 
+- [x] change-review — reviewed by the change-review skill; findings fixed (claude, 2026-07-17T02:40:00Z)
+- [x] clean-code-review — 8-lens audit run, all items resolved (claude, 2026-07-17T02:41:00Z)
 - [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
+
+## Comments
+
+- **claude** (2026-07-17T12:05:00.000Z): Authored the real board — 16 cards plus config at boards/repodoc/.config.json:1 — and wrote the architecture decisions under decisions/. Everything parses through the same core the extension uses (src/core/store.ts:1), so the dogfood content is exercising the real parsers, not a fixture.
+- **claude** (2026-07-17T15:40:00.000Z): Reworked the content layer for the gates/comments design revision before release — updated the skill in src/core/skillContent.ts:1 and the reference docs. Docs handbook and a final parse-through check still open.

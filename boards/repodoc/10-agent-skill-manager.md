@@ -23,4 +23,10 @@ same way they edit cards and decisions.
 
 ## Gates
 
+- [x] change-review — reviewed by the change-review skill; findings fixed (claude, 2026-07-17T02:40:00Z)
+- [x] clean-code-review — 8-lens audit run, all items resolved (claude, 2026-07-17T02:41:00Z)
 - [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
+
+## Comments
+
+- **claude** (2026-07-17T11:15:00.000Z): Made the skill document a single source of truth — the full `SKILL_MD` string lives in src/core/skillContent.ts:1 so every repo gets the same content. The manager that writes and re-syncs installed copies is src/core/skillManager.ts:1. Next up is surfacing skills in the extension tree and adding unit tests, so I left the card in review.

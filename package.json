@@ -2,7 +2,7 @@
   "name": "repodoc",
   "displayName": "RepoDoc",
   "description": "Documentation, decision records, and kanban boards living inside your repo",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "jonathanturnock",
   "license": "MIT",
   "repository": {
@@ -48,12 +48,12 @@
     "viewsWelcome": [
       {
         "view": "repodoc.boards",
-        "contents": "No RepoDoc data found in this repo yet.\n[Initialize RepoDoc](command:repodoc.init)\nThis creates a `.repodoc/` folder with a starter board and decision record.",
+        "contents": "No RepoDoc data found in this repo yet.\n[Initialize RepoDoc](command:repodoc.init)\nThis creates a starter board under `boards/`, a first decision record, and a docs page.",
         "when": "!repodoc.initialized"
       },
       {
         "view": "repodoc.decisions",
-        "contents": "Decision records live in `.repodoc/decisions/` as numbered markdown files.\n[New Decision](command:repodoc.newDecision)",
+        "contents": "Decision records live in `decisions/` as numbered markdown files.\n[New Decision](command:repodoc.newDecision)",
         "when": "repodoc.initialized"
       },
       {
