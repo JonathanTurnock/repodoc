@@ -7,7 +7,12 @@ import { BoardsTreeProvider, DecisionsTreeProvider, DocsTreeProvider } from './t
 import { BoardPanel } from './panels/boardPanel';
 import { MarkdownPanel } from './panels/markdownPanel';
 
-export function activate(context: vscode.ExtensionContext): void {
+/** Public surface returned by {@link activate}, used by e2e tests. */
+export interface RepoDocApi {
+  store: RepoDocStore;
+}
+
+export function activate(context: vscode.ExtensionContext): RepoDocApi {
   const folders = vscode.workspace.workspaceFolders;
   const root = folders && folders.length > 0 ? folders[0].uri.fsPath : undefined;
   const fileSystem = root ? new NodeFileSystemAdapter(root) : new MemFileSystemAdapter();
@@ -74,6 +79,12 @@ export function activate(context: vscode.ExtensionContext): void {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('repodoc.init', () => {
+      if (!root) {
+        void vscode.window.showWarningMessage(
+          'RepoDoc: open a folder first — there is no workspace to initialize.',
+        );
+        return;
+      }
       store.init();
       updateInitializedContext();
       refreshTrees();
@@ -124,6 +135,8 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
   );
+
+  return { store };
 }
 
 export function deactivate(): void {}

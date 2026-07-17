@@ -76,7 +76,7 @@ function parseValue(raw: string): unknown {
     if (!inner) {
       return [];
     }
-    return inner.split(',').map((item) => unquote(item.trim()));
+    return splitTopLevel(inner).map((item) => unquote(item.trim()));
   }
   if (isQuoted(raw)) {
     return unquote(raw);
@@ -91,6 +91,32 @@ function parseValue(raw: string): unknown {
     return Number(raw);
   }
   return raw;
+}
+
+/** Split on commas that sit outside single/double quotes. */
+function splitTopLevel(inner: string): string[] {
+  const parts: string[] = [];
+  let current = '';
+  let quote: string | null = null;
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i];
+    if (quote) {
+      current += ch;
+      if (ch === quote && inner[i - 1] !== '\\') {
+        quote = null;
+      }
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      current += ch;
+    } else if (ch === ',') {
+      parts.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  parts.push(current);
+  return parts;
 }
 
 function isQuoted(s: string): boolean {

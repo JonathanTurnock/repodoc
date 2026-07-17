@@ -169,7 +169,16 @@ export class RepoDocStore {
           typeof parsed.name === 'string' && parsed.name.trim()
             ? parsed.name
             : titleCase(boardId),
-        columns: Array.isArray(parsed.columns) ? (parsed.columns as ConfigColumn[]) : [],
+        columns: Array.isArray(parsed.columns)
+          ? (parsed.columns as unknown[])
+              .filter(
+                (c): c is ConfigColumn =>
+                  !!c &&
+                  typeof c === 'object' &&
+                  typeof (c as ConfigColumn).id === 'string' &&
+                  (c as ConfigColumn).id.length > 0,
+              )
+          : [],
         labels:
           parsed.labels && typeof parsed.labels === 'object' ? parsed.labels : {},
         agents:
@@ -278,6 +287,16 @@ export class RepoDocStore {
     const moved = entries.find((e) => e.slug === cardId);
     if (!moved) {
       return; // unknown card — never delete
+    }
+    // Slugs are card identities. Externally-authored files can collide (two
+    // NN-foo.md files); renumbering would then rename one file over the other
+    // and destroy it, so refuse to reorder until the collision is resolved.
+    const seen = new Set<string>();
+    for (const e of entries) {
+      if (seen.has(e.slug)) {
+        return;
+      }
+      seen.add(e.slug);
     }
     const config = this.readConfig(boardId);
     if (!config.columns.some((c) => c.id === toColumnId)) {
