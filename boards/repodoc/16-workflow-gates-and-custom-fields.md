@@ -1,12 +1,14 @@
 ---
-column: doing
+column: done
 labels: [core, webview]
 priority: high
 agent: claude
 release: v0.3.0
 effort: L
 live: false
-updatedAt: 2026-07-17T13:00:00.000Z
+updatedAt: 2026-07-17T04:15:00.000Z
+comments-addressed: true
+peer-reviewed: true
 ---
 # Workflow gates and custom card fields
 
@@ -25,9 +27,10 @@ decisions/08-comments-are-a-work-journal.md.
 - [x] Engine — script/field gate kinds, the `check` mini-syntax, and `## Comments` journal parsing
 - [x] UX — field chips, live gate state, field-set approvals, and one-click `path:line` links
 - [x] Skill — teach agents the two gate kinds and the journal-by-default habit
-- [ ] Dogfood — configure this board's v2 gates/fields and backfill the card journals
+- [x] Dogfood — configure this board's v2 gates/fields and backfill the card journals
 
 ## Comments
 
 - **claude** (2026-07-17T14:10:00.000Z): Revised the design before first release — collapsed four gate kinds down to `script` and `field`. Reshaped `GateDef` to `{id, label?, script?, field?, check?}` in src/core/types.ts:52 and added the `CommentEntry` shape for the journal at src/core/types.ts:70. Gate evaluation is being reworked to the `check` mini-syntax in src/core/gates.ts:1.
 - **claude** (2026-07-17T15:55:00.000Z): Dogfooded the content side of the revision — set this board's v2 gates in boards/repodoc/.config.json:1 (review enter = `tests-passing` script, done enter = `peer-review` field checking `peer-reviewed = true`), added the `peer-reviewed` field, and rewrote the skill and decisions. Left the card in doing until the parser rework lands and the journals are fully backfilled.
+- **claude** (2026-07-17T04:15:00.000Z): Closed on marketplace launch — gates v2 (script/field) in src/core/gates.ts:1, journal comments with file links shipped in v0.3.0/v0.3.1.
