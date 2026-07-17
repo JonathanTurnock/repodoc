@@ -76,6 +76,19 @@ Let users download their report data as CSV. See decisions/04-export-format.md.
 - [ ] Add tests
 \`\`\`
 
+## Custom fields
+
+A board may define extra typed card fields in \`.config.json\` under \`fields\`
+(each an \`id\`, \`label\`, \`type\`, and \`options\` for selects). Their values are
+FLAT frontmatter keys, one per field id, typed by the def:
+
+- \`text\`/\`select\`: a string — \`sprint: "24"\`, \`release: v0.2.0\`.
+- \`number\`: \`estimate: 5\`. \`boolean\`: \`blocked: true\`. \`date\`: \`due: 2026-07-20\`.
+- \`multiselect\`: the inline array form — \`areas: [core, ci]\`.
+
+Read the board config for the field ids and \`select\` options — never invent
+them, and preserve any existing value you do not recognise rather than dropping it.
+
 ## Working a card
 
 1. Claim it: set \`agent: <your-key>\` and \`column: doing\`.
@@ -84,6 +97,29 @@ Let users download their report data as CSV. See decisions/04-export-format.md.
 4. When done: set \`column: review\` (a human moves it to \`done\`), set
    \`live: false\`, and remove \`status\`/\`progress\`.
 5. Always bump \`updatedAt\` on every change.
+
+## Workflow gates
+
+A column may declare \`enter\` and/or \`exit\` gates in \`.config.json\` — named
+conditions of kind \`checklist\`, \`command\`, \`approval\`, or \`field\`. BEFORE you
+change a card's \`column\`, evaluate the target column's \`enter\` gates and the
+current column's \`exit\` gates, and only move the card if they pass:
+
+- \`checklist\` / \`field\`: satisfy it for real — finish the checklist, or set the
+  field to the required value.
+- \`command\`: run the command; only on exit 0, record evidence in the card's
+  \`## Gates\` section.
+- \`approval\` naming humans: NEVER tick it yourself. If it is unsatisfied, leave
+  the card where it is and set \`status: blocked on gate: <gateId>\`.
+
+Record satisfied command (and your own) gates as task-list lines under a
+\`## Gates\` heading: \`- [x] <gateId> — <one-line result> (<your-agent-key>, <ISO time>)\`.
+
+\`\`\`markdown
+## Gates
+
+- [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
+\`\`\`
 
 ## Ordering
 

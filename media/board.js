@@ -11,6 +11,8 @@
     filterAgent: null,
     addingCol: null, // column id currently showing the composer
     openCardId: null,
+    blocked: null, // {cardId, toColumn, results:[{id,label,satisfied,reason}]} for the blocked-move dialog
+    lastMove: null, // {cardId, toColumn, index} of the most recent move attempt (for override retry)
   };
 
   var addText = ''; // uncontrolled composer text; never triggers a render
@@ -34,6 +36,8 @@
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
     check:
       '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>',
+    shield:
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>',
   };
 
   /* ---- Priority mappings (single source of truth) ---- */
@@ -62,6 +66,7 @@
   var EVT = {
     onClick: 'click',
     onInput: 'input',
+    onChange: 'change',
     onKeyDown: 'keydown',
     onDragStart: 'dragstart',
     onDragEnd: 'dragend',
@@ -194,7 +199,80 @@
     return state.data ? state.data.board : null;
   }
   function config() {
-    return state.data ? state.data.config : { labels: {}, agents: {} };
+    return state.data ? state.data.config : { labels: {}, agents: {}, fields: [] };
+  }
+  function fieldDefs() {
+    var f = config().fields;
+    return Array.isArray(f) ? f : [];
+  }
+  function titleCase(id) {
+    return String(id == null ? '' : id)
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, function (c) {
+        return c.toUpperCase();
+      });
+  }
+  function fieldLabel(def) {
+    return def.label || titleCase(def.id);
+  }
+  function gateLabel(def) {
+    return def.label || def.id;
+  }
+
+  // First done `## Gates` evidence line for a gate id (null when absent).
+  function gateEvidence(card, gateId) {
+    var gates = card.gates || [];
+    for (var i = 0; i < gates.length; i++) {
+      if (gates[i].gateId === gateId && gates[i].done) {
+        return gates[i];
+      }
+    }
+    return null;
+  }
+
+  // Pure client-side mirror of the core gate semantics: does this card satisfy
+  // the given gate right now? (Used for the card-face n/m chip and modal icons;
+  // the host re-evaluates authoritatively on move.)
+  function gateSatisfied(card, def) {
+    switch (def.kind) {
+      case 'checklist':
+        return (card.checklist || []).every(function (x) {
+          return x.done;
+        });
+      case 'field': {
+        var val = (card.custom || {})[def.field];
+        if (def.equals != null) {
+          return String(val) === String(def.equals);
+        }
+        return (
+          val != null && val !== '' && !(Array.isArray(val) && val.length === 0)
+        );
+      }
+      case 'command':
+        return !!gateEvidence(card, def.id);
+      case 'approval': {
+        var by = def.by || [];
+        var gates = card.gates || [];
+        for (var i = 0; i < gates.length; i++) {
+          var g = gates[i];
+          if (g.gateId !== def.id || !g.done) {
+            continue;
+          }
+          if (!by.length) {
+            return true;
+          }
+          var note = String(g.note || '').toLowerCase();
+          for (var j = 0; j < by.length; j++) {
+            if (note.indexOf(String(by[j]).toLowerCase()) !== -1) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      default:
+        return false;
+    }
   }
   function agentDef(key) {
     var agents = config().agents || {};
@@ -293,8 +371,47 @@
     return h('span', { class: 'label-chip', style: tintStyle(l.color) }, l.name);
   }
 
+  // Small muted chip for a showOnCard field value (null when nothing to show).
+  function showOnCardChip(def, card) {
+    var val = (card.custom || {})[def.id];
+    if (val == null || val === '' || (Array.isArray(val) && !val.length)) {
+      return null;
+    }
+    if (def.type === 'boolean') {
+      // Boolean renders just the label when true; nothing when false.
+      return val ? h('span', { class: 'field-chip' }, fieldLabel(def)) : null;
+    }
+    var shown = Array.isArray(val) ? val.join(', ') : String(val);
+    return h('span', { class: 'field-chip' }, fieldLabel(def) + ': ' + shown);
+  }
+
+  // Shield chip counting satisfied/total exit gates for the card's column.
+  function exitGateChip(card, col) {
+    if (!col || !col.exit || !col.exit.length) {
+      return null;
+    }
+    var total = col.exit.length;
+    var sat = 0;
+    var labels = [];
+    col.exit.forEach(function (def) {
+      var ok = gateSatisfied(card, def);
+      if (ok) {
+        sat++;
+      }
+      labels.push((ok ? '✓ ' : '○ ') + gateLabel(def));
+    });
+    return h(
+      'span',
+      {
+        class: 'gate-chip' + (sat >= total ? ' ok' : ''),
+        title: 'Exit gates\n' + labels.join('\n'),
+      },
+      [icon(ICON.shield, 'icon'), sat + '/' + total],
+    );
+  }
+
   /* ---- Card ---- */
-  function buildCard(cardId, card) {
+  function buildCard(cardId, card, col) {
     var children = [];
 
     if (card.labels && card.labels.length) {
@@ -352,6 +469,19 @@
         h('span', { class: 'meta-item' }, [icon(ICON.comment, 'icon'), String(card.comments)]),
       );
     }
+    var gateChip = exitGateChip(card, col);
+    if (gateChip) {
+      meta.push(gateChip);
+    }
+    fieldDefs().forEach(function (def) {
+      if (!def.showOnCard) {
+        return;
+      }
+      var chip = showOnCardChip(def, card);
+      if (chip) {
+        meta.push(chip);
+      }
+    });
     meta.push(h('div', { class: 'meta-spacer' }));
     meta.push(h('span', { class: 'meta-updated' }, humanizeTime(card.updatedAt)));
     var ag = agentDef(card.agent);
@@ -403,9 +533,23 @@
     var head = [
       h('span', { class: 'col-dot', style: 'background:' + col.color + ';' }),
       h('span', { class: 'col-name' }, col.name),
-      h('span', { class: 'col-count' }, String(visible.length)),
-      h('div', { class: 'col-head-spacer' }),
     ];
+    var hasEnter = col.enter && col.enter.length;
+    var hasExit = col.exit && col.exit.length;
+    if (hasEnter || hasExit) {
+      var tip = [];
+      if (hasEnter) {
+        tip.push('enter: ' + col.enter.map(gateLabel).join(', '));
+      }
+      if (hasExit) {
+        tip.push('exit: ' + col.exit.map(gateLabel).join(', '));
+      }
+      head.push(
+        h('span', { class: 'col-gate-glyph', title: tip.join(' / '), html: ICON.shield }),
+      );
+    }
+    head.push(h('span', { class: 'col-count' }, String(visible.length)));
+    head.push(h('div', { class: 'col-head-spacer' }));
     if (col.wip) {
       var over = visible.length > col.wip;
       head.push(
@@ -414,7 +558,7 @@
     }
 
     var listChildren = visible.map(function (x) {
-      return buildCard(x.id, x.card);
+      return buildCard(x.id, x.card, col);
     });
     var list = h('div', { class: 'card-list', dataset: { colId: col.id } }, listChildren);
 
@@ -653,6 +797,236 @@
   }
 
 
+  function postField(cardId, fieldId, value) {
+    vscode.postMessage({ type: 'setField', cardId: cardId, fieldId: fieldId, value: value });
+  }
+
+  // Editor node for one custom field. Text/number/date post on 'change' (blur or
+  // Enter) so typing never re-renders and the input keeps focus; toggles/selects
+  // post immediately (the host echo re-render is harmless for those).
+  function fieldEditor(def, card) {
+    var cardId = state.openCardId;
+    var val = (card.custom || {})[def.id];
+
+    if (def.type === 'boolean') {
+      var on = val === true;
+      return h(
+        'div',
+        {
+          class: 'field-bool',
+          onClick: function () {
+            postField(cardId, def.id, !on);
+          },
+        },
+        [
+          h(
+            'span',
+            { class: 'check-box' + (on ? ' done' : '') },
+            on ? [icon(ICON.check, 'icon')] : [],
+          ),
+          h('span', { class: 'field-bool-label' }, on ? 'Yes' : 'No'),
+        ],
+      );
+    }
+
+    if (def.type === 'select') {
+      var options = def.options || [];
+      var known = val != null && val !== '' && options.indexOf(String(val)) !== -1;
+      var unknown = val != null && val !== '' && !known;
+      var optionNodes = [h('option', { value: '' }, '')];
+      options.forEach(function (opt) {
+        optionNodes.push(h('option', { value: opt }, opt));
+      });
+      if (unknown) {
+        optionNodes.push(h('option', { value: String(val) }, String(val) + ' (unknown)'));
+      }
+      var select = h(
+        'select',
+        {
+          class: 'field-select' + (unknown ? ' unknown' : ''),
+          onChange: function (e) {
+            var v = e.target.value;
+            postField(cardId, def.id, v === '' ? null : v);
+          },
+        },
+        optionNodes,
+      );
+      select.value = val != null ? String(val) : '';
+      return select;
+    }
+
+    if (def.type === 'multiselect') {
+      var current = Array.isArray(val) ? val.slice() : [];
+      var chips = (def.options || []).map(function (opt) {
+        var selected = current.indexOf(opt) !== -1;
+        return h(
+          'span',
+          {
+            class: 'ms-chip' + (selected ? ' on' : ''),
+            style: selected ? tintVar('--vscode-focusBorder') : null,
+            onClick: function () {
+              var next = current.slice();
+              var idx = next.indexOf(opt);
+              if (idx === -1) {
+                next.push(opt);
+              } else {
+                next.splice(idx, 1);
+              }
+              postField(cardId, def.id, next.length ? next : null);
+            },
+          },
+          opt,
+        );
+      });
+      return h('div', { class: 'ms-chips' }, chips);
+    }
+
+    // text | number | date
+    var type = def.type === 'number' ? 'number' : def.type === 'date' ? 'date' : 'text';
+    var input = h('input', {
+      type: type,
+      class: 'field-input',
+      onChange: function (e) {
+        var raw = String(e.target.value).trim();
+        if (raw === '') {
+          postField(cardId, def.id, null);
+          return;
+        }
+        if (def.type === 'number') {
+          var n = Number(raw);
+          postField(cardId, def.id, isNaN(n) ? null : n);
+        } else {
+          postField(cardId, def.id, raw);
+        }
+      },
+    });
+    input.value = val != null ? String(val) : '';
+    return input;
+  }
+
+  function modalFields(card) {
+    var defs = fieldDefs();
+    if (!defs.length) {
+      return null;
+    }
+    var rows = defs.map(function (def) {
+      return h('div', { class: 'field-row' }, [
+        h('div', { class: 'field-row-label' }, fieldLabel(def)),
+        fieldEditor(def, card),
+      ]);
+    });
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'field-label' }, 'Fields'),
+      h('div', { class: 'fields-grid' }, rows),
+    ]);
+  }
+
+  // Human note under a gate row (requirement when unmet, evidence when met).
+  function gateNote(card, def, sat) {
+    switch (def.kind) {
+      case 'checklist': {
+        var list = card.checklist || [];
+        var done = 0;
+        list.forEach(function (x) {
+          if (x.done) {
+            done++;
+          }
+        });
+        return 'Checklist ' + done + '/' + list.length;
+      }
+      case 'field': {
+        var name = def.field || '';
+        if (def.equals != null) {
+          return 'Requires ' + name + ' = ' + def.equals;
+        }
+        return 'Requires ' + name + ' to be set';
+      }
+      case 'approval': {
+        var by = def.by || [];
+        if (sat) {
+          var ev = gateEvidence(card, def.id);
+          return 'Approved' + (ev && ev.note ? ' — ' + ev.note : '');
+        }
+        return by.length ? 'Needs approval by ' + by.join(', ') : 'Needs approval';
+      }
+      case 'command': {
+        if (sat) {
+          var e = gateEvidence(card, def.id);
+          return e && e.note ? e.note : 'Passed';
+        }
+        return 'Run: ' + (def.run || def.id);
+      }
+      default:
+        return '';
+    }
+  }
+
+  function gateRow(card, def) {
+    var sat = gateSatisfied(card, def);
+    var status = sat
+      ? h('span', { class: 'gate-status ok', html: ICON.check })
+      : h('span', { class: 'gate-status' });
+    var main = [
+      h('div', { class: 'gate-label' }, gateLabel(def)),
+      h('div', { class: 'gate-note' }, gateNote(card, def, sat)),
+    ];
+    var rowChildren = [status, h('div', { class: 'gate-main' }, main)];
+    if (def.kind === 'approval' && !sat) {
+      rowChildren.push(
+        h(
+          'button',
+          {
+            class: 'btn-primary gate-approve',
+            onClick: function () {
+              vscode.postMessage({
+                type: 'approveGate',
+                cardId: state.openCardId,
+                gateId: def.id,
+              });
+            },
+          },
+          'Approve',
+        ),
+      );
+    }
+    return h('div', { class: 'gate-row' }, rowChildren);
+  }
+
+  function modalGates(card, col) {
+    var b = board();
+    var groups = [];
+    if (col && col.exit && col.exit.length) {
+      groups.push({ heading: 'To leave ' + col.name, gates: col.exit });
+    }
+    (b.columns || []).forEach(function (c) {
+      if (col && c.id === col.id) {
+        return;
+      }
+      if (c.enter && c.enter.length) {
+        groups.push({ heading: 'To enter ' + c.name, gates: c.enter });
+      }
+    });
+    if (!groups.length) {
+      return null;
+    }
+    var blocks = groups.map(function (grp) {
+      return h('div', { class: 'gate-group' }, [
+        h('div', { class: 'gate-group-head' }, grp.heading),
+        h(
+          'div',
+          { class: 'gate-list' },
+          grp.gates.map(function (def) {
+            return gateRow(card, def);
+          }),
+        ),
+      ]);
+    });
+    return h('div', { class: 'section' }, [
+      h('div', { class: 'field-label' }, 'Gates'),
+      h('div', { class: 'gates' }, blocks),
+    ]);
+  }
+
   function buildModal() {
     var card = board().cards[state.openCardId];
     if (!card) {
@@ -664,7 +1038,9 @@
       modalLiveBanner(card),
       modalMeta(card),
       modalDescription(card),
+      modalFields(card),
       modalChecklist(card),
+      modalGates(card, col),
     ];
 
     var panel = h(
@@ -684,6 +1060,72 @@
   function closeModal() {
     state.openCardId = null;
     render();
+  }
+
+  /* ---- Blocked-move dialog ---- */
+  function closeBlocked() {
+    state.blocked = null;
+    render();
+  }
+
+  function overrideMove() {
+    var lm = state.lastMove;
+    state.blocked = null;
+    if (lm) {
+      vscode.postMessage({
+        type: 'moveCard',
+        cardId: lm.cardId,
+        toColumn: lm.toColumn,
+        index: lm.index,
+        override: true,
+      });
+    }
+    render();
+  }
+
+  function buildBlockedDialog() {
+    var bl = state.blocked;
+    if (!bl) {
+      return null;
+    }
+    var col = columnById(bl.toColumn);
+    var name = col ? col.name : bl.toColumn;
+    var rows = (bl.results || []).map(function (r) {
+      return h('div', { class: 'blocked-gate' }, [
+        h('span', { class: 'gate-status' }),
+        h('div', { class: 'gate-main' }, [
+          h('div', { class: 'gate-label' }, r.label),
+          h('div', { class: 'gate-note' }, r.reason),
+        ]),
+      ]);
+    });
+    var panel = h(
+      'div',
+      {
+        class: 'modal blocked-modal',
+        onClick: function (e) {
+          e.stopPropagation();
+        },
+      },
+      [
+        h('div', { class: 'modal-head' }, [
+          h('div', { class: 'modal-head-row' }, [
+            h('div', { class: 'modal-head-main' }, [
+              h('div', { class: 'modal-title blocked-title' }, "Can't move to " + name),
+            ]),
+            h('button', { class: 'modal-close', onClick: closeBlocked }, '✕'),
+          ]),
+        ]),
+        h('div', { class: 'modal-body' }, [
+          h('div', { class: 'blocked-gates' }, rows),
+          h('div', { class: 'blocked-actions' }, [
+            h('button', { class: 'btn-secondary', onClick: overrideMove }, 'Override & move'),
+            h('button', { class: 'btn-primary', onClick: closeBlocked }, 'Cancel'),
+          ]),
+        ]),
+      ],
+    );
+    return h('div', { class: 'modal-overlay', onClick: closeBlocked }, [panel]);
   }
 
   /* ---- Drag & drop ---- */
@@ -830,8 +1272,11 @@
       : 0;
     var cardId = drag.cardId;
     cleanupDrag();
+    // Stash the attempt so a blocked-move dialog can retry it with override.
+    state.lastMove = { cardId: cardId, toColumn: colId, index: index };
     vscode.postMessage({ type: 'moveCard', cardId: cardId, toColumn: colId, index: index });
-    // The resulting {type:'data'} message re-renders.
+    // The resulting {type:'data'} message re-renders; a gate block replies with
+    // {type:'moveBlocked'} instead and the card stays put.
   }
 
   function onDragEnd() {
@@ -897,6 +1342,13 @@
       }
     }
 
+    if (state.blocked) {
+      var dialog = buildBlockedDialog();
+      if (dialog) {
+        app.appendChild(dialog);
+      }
+    }
+
     if (restoreSearch) {
       var input = document.getElementById('search-input');
       if (input) {
@@ -939,6 +1391,19 @@
     if (msg.type === 'openCard' && typeof msg.cardId === 'string') {
       // Host-driven card open (tests / automation) — mirrors a card click.
       state.openCardId = msg.cardId;
+      if (state.data) {
+        render();
+      }
+      return;
+    }
+    if (msg.type === 'moveBlocked' && typeof msg.cardId === 'string') {
+      // A gated move was refused; surface the unmet gates with an override path.
+      // The drop already ended, so drag.active is false — safe to render now.
+      state.blocked = {
+        cardId: msg.cardId,
+        toColumn: msg.toColumn,
+        results: Array.isArray(msg.results) ? msg.results : [],
+      };
       if (state.data) {
         render();
       }

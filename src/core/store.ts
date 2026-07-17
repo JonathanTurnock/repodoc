@@ -10,6 +10,7 @@ import {
 } from './boardConfig';
 import { computeCardOrder } from './ordering';
 import { CardEntry, findChecklist, parseCard } from './cardParse';
+import { evaluateTransition } from './gates';
 import { DecisionStore } from './decisions';
 import { DocStore } from './docs';
 import { seedBoardConfig, seedCards, seedDecision, seedIntroDoc } from './seed';
@@ -18,8 +19,11 @@ import {
   BoardRef,
   Card,
   Column,
+  CustomFieldDef,
+  CustomFieldValue,
   DecisionRecord,
   DocNode,
+  GateResult,
   RepoDocConfig,
 } from './types';
 
@@ -106,7 +110,7 @@ export class RepoDocStore {
 
   getBoardConfig(boardId: string): RepoDocConfig {
     const config = this.readConfig(boardId);
-    return { labels: config.labels, agents: config.agents };
+    return { labels: config.labels, agents: config.agents, fields: config.fields };
   }
 
   displayPath(boardId: string): string {
@@ -164,6 +168,8 @@ export class RepoDocStore {
       name: c.name || titleCase(c.id),
       color: c.color || '#7d828b',
       wip: c.wip,
+      enter: c.enter,
+      exit: c.exit,
       cardIds: [],
     }));
     const byId = new Map(columns.map((c) => [c.id, c]));
@@ -189,6 +195,7 @@ export class RepoDocStore {
       columns: defaultColumns(),
       labels: { ...DEFAULT_LABELS },
       agents: { ...DEFAULT_AGENTS },
+      fields: [],
     };
     this.writeConfig(id, config);
     return id;
@@ -288,6 +295,95 @@ export class RepoDocStore {
     }
   }
 
+  // ---- custom fields ----
+
+  /**
+   * Sets (or clears) a board-defined custom field on a card. `fieldId` must be
+   * a declared field and `value` must match its type — a wrong type, or an
+   * unknown field, is a silent no-op. Passing `undefined` (or an empty array
+   * for a multiselect) removes the frontmatter key.
+   */
+  setCardField(
+    boardId: string,
+    cardId: string,
+    fieldId: string,
+    value: CustomFieldValue | undefined,
+  ): void {
+    const def = this.readConfig(boardId).fields.find((f) => f.id === fieldId);
+    if (!def) {
+      return; // not a declared field
+    }
+    let write: CustomFieldValue | undefined;
+    if (value !== undefined) {
+      const coerced = coerceFieldValue(def, value);
+      if (!coerced) {
+        return; // wrong type — no-op
+      }
+      write = coerced.value; // may be undefined for an empty multiselect
+    }
+    const fileName = this.cardFileNames(boardId).find((n) => slugFromFileName(n) === cardId);
+    if (!fileName) {
+      return;
+    }
+    const changed = this.updateCardFile(boardId, fileName, (data, body) => {
+      if (write === undefined) {
+        delete data[fieldId];
+      } else {
+        data[fieldId] = write;
+      }
+      return { data, body };
+    });
+    if (changed) {
+      this.fire();
+    }
+  }
+
+  // ---- gates ----
+
+  /**
+   * Evaluates the gates guarding a move of `cardId` into `toColumnId`. Returns
+   * the results of the source column's exit gates plus the target's enter gates.
+   * Empty when the card/column is unknown or the move stays in the same column.
+   */
+  evaluateMove(boardId: string, cardId: string, toColumnId: string): GateResult[] {
+    const board = this.getBoard(boardId);
+    if (!board) {
+      return [];
+    }
+    const card = board.cards[cardId];
+    const to = board.columns.find((c) => c.id === toColumnId);
+    if (!card || !to) {
+      return [];
+    }
+    const entry = this.readBoardCards(boardId).find((e) => e.slug === cardId);
+    const from = entry ? board.columns.find((c) => c.id === entry.column) : undefined;
+    return evaluateTransition(card, from, to);
+  }
+
+  /** Records an approval for `gateId` on a card's `## Gates` section. */
+  recordGateApproval(boardId: string, cardId: string, gateId: string, who: string): void {
+    this.recordGate(boardId, cardId, gateId, `approved (${who}, ${this.now()})`);
+  }
+
+  /** Records a manual override for `gateId` on a card's `## Gates` section. */
+  recordGateOverride(boardId: string, cardId: string, gateId: string, who: string): void {
+    this.recordGate(boardId, cardId, gateId, `OVERRIDDEN (${who}, ${this.now()})`);
+  }
+
+  private recordGate(boardId: string, cardId: string, gateId: string, note: string): void {
+    const fileName = this.cardFileNames(boardId).find((n) => slugFromFileName(n) === cardId);
+    if (!fileName) {
+      return;
+    }
+    const changed = this.updateCardFile(boardId, fileName, (data, body) => ({
+      data,
+      body: upsertGateLine(body, gateId, note),
+    }));
+    if (changed) {
+      this.fire();
+    }
+  }
+
   // ---- card file helpers ----
 
   private cardFileNames(boardId: string): string[] {
@@ -327,13 +423,14 @@ export class RepoDocStore {
   }
 
   private readBoardCards(boardId: string): CardEntry[] {
+    const fields = this.readConfig(boardId).fields;
     const entries: CardEntry[] = [];
     for (const fileName of this.cardFileNames(boardId)) {
       const content = this.fs.readFile(`boards/${boardId}/${fileName}`);
       if (content === undefined) {
         continue; // unreadable — skip
       }
-      const entry = parseCard(fileName, content);
+      const entry = parseCard(fileName, content, fields);
       if (entry) {
         entries.push(entry);
       }
@@ -417,4 +514,90 @@ export class RepoDocStore {
 /** Formats a value as the on-disk JSON file content (pretty, trailing newline). */
 function jsonFileContent(value: unknown): string {
   return JSON.stringify(value, null, 2) + '\n';
+}
+
+/**
+ * Validates `value` against a field def, returning the value to write or
+ * `undefined` when the type is wrong. A valid-but-empty multiselect resolves to
+ * an inner `undefined`, signalling the caller to remove the key.
+ */
+function coerceFieldValue(
+  def: CustomFieldDef,
+  value: CustomFieldValue,
+): { value: CustomFieldValue | undefined } | undefined {
+  switch (def.type) {
+    case 'text':
+    case 'date':
+    case 'select':
+      return typeof value === 'string' ? { value } : undefined;
+    case 'number':
+      return typeof value === 'number' && Number.isFinite(value) ? { value } : undefined;
+    case 'boolean':
+      return typeof value === 'boolean' ? { value } : undefined;
+    case 'multiselect': {
+      let arr: string[] | undefined;
+      if (typeof value === 'string') {
+        arr = [value];
+      } else if (Array.isArray(value) && value.every((v) => typeof v === 'string')) {
+        arr = value;
+      } else {
+        return undefined;
+      }
+      return { value: arr.length ? arr : undefined };
+    }
+    default:
+      return undefined;
+  }
+}
+
+const GATE_SEPARATOR = ' — ';
+
+/**
+ * Inserts or replaces a done `- [x] <gateId> — <note>` line in the card body's
+ * `## Gates` section. An existing line for the gate is replaced in place; a new
+ * gate is appended to the end of the section. When there is no `## Gates`
+ * section, one is appended at the end of the body. All other bytes are
+ * preserved.
+ */
+function upsertGateLine(body: string, gateId: string, note: string): string {
+  const line = `- [x] ${gateId}${GATE_SEPARATOR}${note}`;
+  const lines = body.split('\n');
+
+  const headingIdx = lines.findIndex((l) => /^##\s+gates\s*$/i.test(l));
+  if (headingIdx === -1) {
+    const trimmed = body.replace(/\s+$/, '');
+    const prefix = trimmed.length ? `${trimmed}\n\n` : '';
+    return `${prefix}## Gates\n\n${line}\n`;
+  }
+
+  // Section spans from the heading to the next heading (or end of body).
+  let end = lines.length;
+  for (let i = headingIdx + 1; i < lines.length; i++) {
+    if (/^#{1,6}\s+/.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+
+  for (let i = headingIdx + 1; i < end; i++) {
+    const m = /^\s*-\s+\[([ xX])\]\s+(.*)$/.exec(lines[i]);
+    if (!m) {
+      continue;
+    }
+    const text = m[2].trim();
+    const sep = text.indexOf(GATE_SEPARATOR);
+    const existingId = sep === -1 ? text : text.slice(0, sep).trim();
+    if (existingId === gateId) {
+      lines[i] = line;
+      return lines.join('\n');
+    }
+  }
+
+  // Append after the section's last non-blank line.
+  let insertAt = end;
+  while (insertAt > headingIdx + 1 && lines[insertAt - 1].trim() === '') {
+    insertAt--;
+  }
+  lines.splice(insertAt, 0, line);
+  return lines.join('\n');
 }

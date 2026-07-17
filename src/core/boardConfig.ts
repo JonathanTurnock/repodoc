@@ -4,7 +4,14 @@
  * trustworthy {@link BoardConfig} the store can rely on.
  */
 
-import { AgentDef, LabelDef } from './types';
+import {
+  AgentDef,
+  CustomFieldDef,
+  CustomFieldType,
+  GateDef,
+  GateKind,
+  LabelDef,
+} from './types';
 import { titleCase } from './naming';
 
 /** A configured column as stored in `.config.json` (no derived card list). */
@@ -13,6 +20,10 @@ export interface ConfigColumn {
   name: string;
   color: string;
   wip?: number;
+  /** Gates a card must satisfy to move INTO this column. */
+  enter?: GateDef[];
+  /** Gates a card must satisfy to move OUT of this column. */
+  exit?: GateDef[];
 }
 
 export interface BoardConfig {
@@ -20,7 +31,44 @@ export interface BoardConfig {
   columns: ConfigColumn[];
   labels: Record<string, LabelDef>;
   agents: Record<string, AgentDef>;
+  /** Board-defined card fields, in declaration order. */
+  fields: CustomFieldDef[];
 }
+
+/**
+ * Frontmatter keys RepoDoc owns on every card. A custom field may not reuse
+ * one of these ids — doing so would let a field clobber (or masquerade as) a
+ * built-in card property. Exported so the store and UI can share the guard.
+ */
+export const RESERVED_CARD_KEYS: ReadonlySet<string> = new Set<string>([
+  'column',
+  'labels',
+  'priority',
+  'agent',
+  'live',
+  'status',
+  'progress',
+  'comments',
+  'updatedAt',
+  'title',
+  'id',
+]);
+
+const FIELD_TYPES: ReadonlySet<CustomFieldType> = new Set<CustomFieldType>([
+  'text',
+  'number',
+  'boolean',
+  'date',
+  'select',
+  'multiselect',
+]);
+
+const GATE_KINDS: ReadonlySet<GateKind> = new Set<GateKind>([
+  'checklist',
+  'command',
+  'approval',
+  'field',
+]);
 
 export const DEFAULT_LABELS: Record<string, LabelDef> = {
   backend: { name: 'backend', color: '#3fb27f' },
@@ -59,24 +107,155 @@ export function defaultColumns(): ConfigColumn[] {
 export function normalizeBoardConfig(parsed: unknown, boardId: string): BoardConfig {
   const fallbackName = titleCase(boardId);
   if (!parsed || typeof parsed !== 'object') {
-    return { name: fallbackName, columns: [], labels: {}, agents: {} };
+    return { name: fallbackName, columns: [], labels: {}, agents: {}, fields: [] };
   }
-  const p = parsed as Partial<BoardConfig>;
+  const p = parsed as Record<string, unknown>;
   return {
     name:
       typeof p.name === 'string' && p.name.trim() ? p.name : fallbackName,
     columns: Array.isArray(p.columns)
-      ? (p.columns as unknown[]).filter(
-          (c): c is ConfigColumn =>
-            !!c &&
-            typeof c === 'object' &&
-            typeof (c as ConfigColumn).id === 'string' &&
-            (c as ConfigColumn).id.length > 0,
-        )
+      ? (p.columns as unknown[])
+          .map(normalizeColumn)
+          .filter((c): c is ConfigColumn => c !== undefined)
       : [],
     labels: cleanDefMap<LabelDef>(p.labels),
     agents: cleanDefMap<AgentDef>(p.agents),
+    fields: normalizeFields(p.fields),
   };
+}
+
+/**
+ * Coerces one raw column entry into a {@link ConfigColumn}, dropping entries
+ * without a usable string id and normalizing any `enter`/`exit` gate lists.
+ * Empty gate lists are omitted so untouched configs round-trip unchanged.
+ */
+function normalizeColumn(raw: unknown): ConfigColumn | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return undefined;
+  }
+  const c = raw as Record<string, unknown>;
+  if (typeof c.id !== 'string' || c.id.length === 0) {
+    return undefined;
+  }
+  const out: ConfigColumn = {
+    id: c.id,
+    name: typeof c.name === 'string' ? c.name : '',
+    color: typeof c.color === 'string' ? c.color : '',
+  };
+  if (typeof c.wip === 'number' && Number.isFinite(c.wip)) {
+    out.wip = c.wip;
+  }
+  const enter = normalizeGates(c.enter);
+  if (enter.length) {
+    out.enter = enter;
+  }
+  const exit = normalizeGates(c.exit);
+  if (exit.length) {
+    out.exit = exit;
+  }
+  return out;
+}
+
+/**
+ * Validates the board's custom `fields`. Drops entries that are not objects,
+ * lack a string id, collide with a {@link RESERVED_CARD_KEYS reserved key},
+ * duplicate an earlier field id, or carry an unknown `type`. `select` and
+ * `multiselect` always get an `options` string array (defaulting to `[]`).
+ */
+function normalizeFields(value: unknown): CustomFieldDef[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: CustomFieldDef[] = [];
+  const seen = new Set<string>();
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      continue;
+    }
+    const f = raw as Record<string, unknown>;
+    const id = f.id;
+    if (typeof id !== 'string' || id.length === 0) {
+      continue;
+    }
+    if (RESERVED_CARD_KEYS.has(id) || seen.has(id)) {
+      continue;
+    }
+    const type = f.type;
+    if (typeof type !== 'string' || !FIELD_TYPES.has(type as CustomFieldType)) {
+      continue;
+    }
+    const def: CustomFieldDef = { id, type: type as CustomFieldType };
+    if (typeof f.label === 'string') {
+      def.label = f.label;
+    }
+    if (typeof f.showOnCard === 'boolean') {
+      def.showOnCard = f.showOnCard;
+    }
+    if (type === 'select' || type === 'multiselect') {
+      def.options = Array.isArray(f.options)
+        ? f.options.filter((o): o is string => typeof o === 'string')
+        : [];
+    }
+    out.push(def);
+    seen.add(id);
+  }
+  return out;
+}
+
+/**
+ * Validates a per-column `enter`/`exit` gate list. Drops non-objects, entries
+ * without a string id, and unknown kinds; keeps only the props each kind uses.
+ */
+function normalizeGates(value: unknown): GateDef[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const out: GateDef[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      continue;
+    }
+    const g = raw as Record<string, unknown>;
+    const id = g.id;
+    if (typeof id !== 'string' || id.length === 0) {
+      continue;
+    }
+    const kind = g.kind;
+    if (typeof kind !== 'string' || !GATE_KINDS.has(kind as GateKind)) {
+      continue;
+    }
+    const def: GateDef = { id, kind: kind as GateKind };
+    if (typeof g.label === 'string') {
+      def.label = g.label;
+    }
+    switch (kind) {
+      case 'command':
+        if (typeof g.run === 'string') {
+          def.run = g.run;
+        }
+        break;
+      case 'approval':
+        def.by = Array.isArray(g.by)
+          ? g.by.filter((b): b is string => typeof b === 'string')
+          : [];
+        break;
+      case 'field':
+        if (typeof g.field === 'string') {
+          def.field = g.field;
+        }
+        if (typeof g.nonEmpty === 'boolean') {
+          def.nonEmpty = g.nonEmpty;
+        }
+        if (typeof g.equals === 'string') {
+          def.equals = g.equals;
+        }
+        break;
+      default:
+        break;
+    }
+    out.push(def);
+  }
+  return out;
 }
 
 /**

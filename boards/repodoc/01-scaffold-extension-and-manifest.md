@@ -2,7 +2,9 @@
 column: done
 labels: [core]
 priority: high
-updatedAt: 2026-07-16T09:12:00.000Z
+release: v0.1.0
+effort: M
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Scaffold the VS Code extension and manifest
 

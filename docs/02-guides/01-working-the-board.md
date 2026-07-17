@@ -31,5 +31,22 @@ renumbers the card files on disk so the `NN-` prefixes stay contiguous.
 - **Checklists**: break a card into `- [ ]` / `- [x]` sub-steps under a
   `## Checklist` heading; tick them off as you go.
 
+## Gates
+
+Some columns guard their transitions. This board requires tests to pass before a
+card enters **In Review**, and a peer review by Jonathan before it enters
+**Done**. Before you move a card, its target column's `enter` gates (and its
+current column's `exit` gates) must be satisfied — otherwise the move is blocked
+and the card keeps its `status: blocked on gate: <gateId>`.
+
+- **Command gates** (`npm test`): run the check yourself and, on success, record
+  the result under a `## Gates` heading in the card as
+  `- [x] tests-passing — <result> (<you>, <ISO time>)`.
+- **Approval gates** naming a person are ticked only by that person — approving
+  from the card modal writes the evidence line under their git identity. Agents
+  never tick a human's approval.
+- **Overriding** a gate is allowed but recorded: the override line names who
+  bypassed it, so it shows up in the diff and in `git blame`.
+
 Made a significant architectural choice while working a card? Add the next
 decision record and link it — see [Writing decisions](03-writing-decisions.md).

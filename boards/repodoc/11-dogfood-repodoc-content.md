@@ -3,7 +3,9 @@ column: review
 labels: [docs]
 priority: med
 agent: claude
-updatedAt: 2026-07-17T01:40:00.000Z
+release: v0.2.0
+effort: M
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Dogfood RepoDoc on its own repository
 
@@ -18,3 +20,7 @@ through the same core the extension uses.
 - [x] Write the architecture decision records
 - [ ] Complete the docs handbook
 - [ ] Verify all content parses through the store
+
+## Gates
+
+- [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)

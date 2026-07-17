@@ -2,7 +2,9 @@
 column: done
 labels: [ci, docs]
 priority: high
-updatedAt: 2026-07-17T08:10:00.000Z
+release: v0.1.0
+effort: S
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Ship the v0.1.0 GitHub release
 

@@ -1,7 +1,14 @@
 import * as vscode from 'vscode';
 import { RepoDocStore } from '../core/store';
 import { buildWebviewHtml } from './webviewHtml';
-import { DataMessage, OpenCardMessage, WebviewToHostMessage } from './protocol';
+import {
+  DataMessage,
+  MoveBlockedMessage,
+  OpenCardMessage,
+  WebviewToHostMessage,
+} from './protocol';
+import { localIdentity } from './identity';
+import { CustomFieldValue } from '../core/types';
 
 /**
  * A single kanban board rendered in a webview. One panel is kept per board id.
@@ -158,7 +165,38 @@ export class BoardPanel {
           typeof m.toColumn === 'string' &&
           typeof m.index === 'number'
         ) {
-          this.store.moveCard(this.boardId, m.cardId, m.toColumn, m.index);
+          this.handleMove(m.cardId, m.toColumn, m.index, m.override === true);
+        }
+        break;
+      }
+      case 'setField': {
+        if (typeof m.cardId === 'string' && typeof m.fieldId === 'string') {
+          const value = m.value;
+          const ok =
+            value === null ||
+            typeof value === 'string' ||
+            typeof value === 'number' ||
+            typeof value === 'boolean' ||
+            (Array.isArray(value) && value.every((v) => typeof v === 'string'));
+          if (ok) {
+            this.store.setCardField(
+              this.boardId,
+              m.cardId,
+              m.fieldId,
+              (value as CustomFieldValue | null) ?? undefined,
+            );
+          }
+        }
+        break;
+      }
+      case 'approveGate': {
+        if (typeof m.cardId === 'string' && typeof m.gateId === 'string') {
+          this.store.recordGateApproval(
+            this.boardId,
+            m.cardId,
+            m.gateId,
+            localIdentity(this.store.root),
+          );
         }
         break;
       }
@@ -184,6 +222,44 @@ export class BoardPanel {
       default:
         break;
     }
+  }
+
+  /**
+   * Evaluate a proposed move against the target column's gates. When gates
+   * block and the move is not overridden, tell the webview and hold. When
+   * overridden, attribute an override to the local identity for each blocking
+   * gate, then move.
+   */
+  private handleMove(
+    cardId: string,
+    toColumn: string,
+    index: number,
+    override: boolean,
+  ): void {
+    const results = this.store.evaluateMove(this.boardId, cardId, toColumn);
+    const blocking = results.filter((r) => !r.satisfied);
+    if (blocking.length && !override) {
+      const message: MoveBlockedMessage = {
+        type: 'moveBlocked',
+        cardId,
+        toColumn,
+        results: blocking.map((r) => ({
+          id: r.gate.id,
+          label: r.gate.label ?? r.gate.id,
+          satisfied: r.satisfied,
+          reason: r.reason,
+        })),
+      };
+      void this.panel.webview.postMessage(message);
+      return;
+    }
+    if (blocking.length && override) {
+      const who = localIdentity(this.store.root);
+      for (const r of blocking) {
+        this.store.recordGateOverride(this.boardId, cardId, r.gate.id, who);
+      }
+    }
+    this.store.moveCard(this.boardId, cardId, toColumn, index);
   }
 
   private async promptAddColumn(): Promise<void> {

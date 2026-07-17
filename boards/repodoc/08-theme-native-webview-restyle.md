@@ -2,7 +2,9 @@
 column: done
 labels: [webview]
 priority: med
-updatedAt: 2026-07-17T09:25:00.000Z
+release: v0.2.0
+effort: M
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Restyle webviews to follow VS Code theme tokens
 

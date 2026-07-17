@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { normalizeBoardConfig } from '../../core/boardConfig';
+import { normalizeBoardConfig, RESERVED_CARD_KEYS } from '../../core/boardConfig';
 
 suite('boardConfig.normalizeBoardConfig — fallbacks', () => {
   test('undefined input yields a board named from the id with empty maps', () => {
@@ -8,6 +8,7 @@ suite('boardConfig.normalizeBoardConfig — fallbacks', () => {
       columns: [],
       labels: {},
       agents: {},
+      fields: [],
     });
   });
 
@@ -18,6 +19,7 @@ suite('boardConfig.normalizeBoardConfig — fallbacks', () => {
         columns: [],
         labels: {},
         agents: {},
+        fields: [],
       });
     }
   });
@@ -86,5 +88,104 @@ suite('boardConfig.normalizeBoardConfig — label/agent hygiene', () => {
     const config = normalizeBoardConfig({ name: 'B', labels: 'x', agents: 7 }, 'b');
     assert.deepStrictEqual(config.labels, {});
     assert.deepStrictEqual(config.agents, {});
+  });
+});
+
+suite('boardConfig.normalizeBoardConfig — custom fields', () => {
+  test('missing/absent fields degrades to an empty array', () => {
+    assert.deepStrictEqual(normalizeBoardConfig({ name: 'B' }, 'b').fields, []);
+    assert.deepStrictEqual(normalizeBoardConfig({ name: 'B', fields: 'x' }, 'b').fields, []);
+  });
+
+  test('drops non-objects, no-string-id, reserved, duplicate, and unknown-type entries', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        fields: [
+          { id: 'estimate', type: 'number', label: 'Estimate' },
+          { id: 'priority', type: 'text' }, // reserved key — dropped
+          { id: 'estimate', type: 'text' }, // duplicate id — dropped
+          { id: 'foo', type: 'bogus' }, // unknown type — dropped
+          { id: '', type: 'text' }, // empty id — dropped
+          { type: 'text' }, // no id — dropped
+          null,
+          'nope',
+          { id: 'flag', type: 'boolean', showOnCard: true },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.fields, [
+      { id: 'estimate', type: 'number', label: 'Estimate' },
+      { id: 'flag', type: 'boolean', showOnCard: true },
+    ]);
+  });
+
+  test('select/multiselect always carry a coerced options string array', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        fields: [
+          { id: 'sev', type: 'select', options: ['low', 2, 'high', null] },
+          { id: 'tags', type: 'multiselect' },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.fields, [
+      { id: 'sev', type: 'select', options: ['low', 'high'] },
+      { id: 'tags', type: 'multiselect', options: [] },
+    ]);
+  });
+
+  test('every reserved card key is rejected as a field id', () => {
+    const fields = [...RESERVED_CARD_KEYS].map((id) => ({ id, type: 'text' }));
+    assert.deepStrictEqual(normalizeBoardConfig({ name: 'B', fields }, 'b').fields, []);
+  });
+});
+
+suite('boardConfig.normalizeBoardConfig — column gates', () => {
+  test('normalizes enter/exit gates per kind and strips unknown props', () => {
+    const config = normalizeBoardConfig(
+      {
+        name: 'B',
+        columns: [
+          {
+            id: 'review',
+            name: 'Review',
+            color: '#000',
+            enter: [
+              { id: 'g1', kind: 'checklist', label: 'All done?' },
+              { id: 'g2', kind: 'command', run: 'npm test', junk: 'x' },
+              { id: 'g3', kind: 'approval', by: ['jonathan', 5] },
+              { id: 'g4', kind: 'field', field: 'sev', equals: 'high', nonEmpty: true },
+              { id: 'g5', kind: 'bogus' }, // unknown kind — dropped
+              { id: '', kind: 'checklist' }, // no id — dropped
+              { kind: 'checklist' }, // no id — dropped
+              null,
+            ],
+            exit: [{ id: 'x1', kind: 'approval' }],
+          },
+          { id: 'todo', name: 'Todo', color: '#000' },
+        ],
+      },
+      'b',
+    );
+    assert.deepStrictEqual(config.columns[0].enter, [
+      { id: 'g1', kind: 'checklist', label: 'All done?' },
+      { id: 'g2', kind: 'command', run: 'npm test' },
+      { id: 'g3', kind: 'approval', by: ['jonathan'] },
+      { id: 'g4', kind: 'field', field: 'sev', equals: 'high', nonEmpty: true },
+    ]);
+    assert.deepStrictEqual(config.columns[0].exit, [{ id: 'x1', kind: 'approval', by: [] }]);
+  });
+
+  test('columns without gates carry no enter/exit keys', () => {
+    const config = normalizeBoardConfig(
+      { name: 'B', columns: [{ id: 'todo', name: 'Todo', color: '#000' }] },
+      'b',
+    );
+    assert.strictEqual(config.columns[0].enter, undefined);
+    assert.strictEqual(config.columns[0].exit, undefined);
   });
 });

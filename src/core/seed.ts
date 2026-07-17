@@ -12,6 +12,7 @@ export function seedBoardConfig(): BoardConfig {
     columns: defaultColumns(),
     labels: { ...DEFAULT_LABELS },
     agents: { ...DEFAULT_AGENTS },
+    fields: [],
   };
 }
 

@@ -23,10 +23,50 @@ the extension's core parses — the parsers live in `src/core/` (`frontmatter.ts
 ```
 
 - `columns` is an ordered list; each needs an `id`, and may set `name`, `color`,
-  and an optional `wip` limit. A column with no `name` falls back to a
-  title-cased `id`.
+  an optional `wip` limit, and `enter`/`exit` gates (see below). A column with no
+  `name` falls back to a title-cased `id`.
 - `labels` and `agents` are keyed maps. An entry that is null or carries no
   string field is dropped, so a stray `"claude": null` never reaches the UI.
+- `fields` is an ordered list of custom card-field definitions (see below).
+
+### Custom fields — `fields`
+
+A board may declare extra typed card fields. Each definition carries an `id`
+(the frontmatter key), an optional `label`, a `type`, `options` for the two
+select kinds, and an optional `showOnCard` to render the value as a chip on the
+card face:
+
+```json
+"fields": [
+  { "id": "release", "label": "Release", "type": "select",
+    "options": ["v0.1.0", "v0.2.0", "v0.3.0"], "showOnCard": true },
+  { "id": "effort", "label": "Effort", "type": "select", "options": ["S", "M", "L"] }
+]
+```
+
+`type` is one of `text`, `number`, `boolean`, `date`, `select`, or `multiselect`.
+A field `id` must not collide with a reserved card key (`column`, `labels`, and
+so on). A `select` value that is not among `options` is preserved and flagged as
+unknown, never dropped.
+
+### Gates — `enter` / `exit`
+
+A column may gate transitions. `enter` gates must pass to move a card INTO the
+column; `exit` gates must pass to move it OUT. Each gate has an `id`, a `kind`,
+and an optional `label`:
+
+- `checklist` — the card's `## Checklist` must be complete.
+- `command` — `run` names a check (e.g. `"npm test"`); evidence-based in v1.
+- `approval` — `by` lists identities (a git `user.name`) allowed to approve.
+- `field` — `field` names a field id; satisfied when it is `nonEmpty`, or
+  `equals` a given value.
+
+```json
+"enter": [
+  { "id": "tests-passing", "kind": "command", "run": "npm test", "label": "All tests passing" },
+  { "id": "peer-review", "kind": "approval", "by": ["jonathan"], "label": "Peer reviewed" }
+]
+```
 
 ## Card — `boards/<board-id>/NN-slug.md`
 
@@ -58,6 +98,23 @@ A sentence or two of description.
 - `NN` is a two-digit global order, contiguous from `01`; the slug after it is
   the card's identity. Frontmatter uses a small YAML subset — `key: value`
   pairs, inline `[a, b]` arrays, strings, numbers, and booleans.
+- **Custom-field values** are flat frontmatter keys, one per board-defined field
+  id, typed by the def: `release: v0.2.0` (select), `estimate: 5` (number),
+  `blocked: true` (boolean), `due: 2026-07-20` (date), `areas: [core, ci]`
+  (multiselect, inline-array form).
+- **Gate evidence** lives under a `## Gates` heading as task-list items, one per
+  satisfied `command` or `approval` gate, formatted
+  `- [x] <gateId> — <note> (<who>, <ISO time>)`:
+
+  ```md
+  ## Gates
+
+  - [x] tests-passing — npm test green, 130 unit + 9 e2e (claude, 2026-07-17T02:30:00Z)
+  - [x] peer-review — approved (jonathan, 2026-07-17T09:00:00Z)
+  ```
+
+  A human override is recorded on the same line with `OVERRIDDEN` and their name,
+  keeping the bypass visible in the diff.
 
 ## Decision — `decisions/NN-slug.md`
 

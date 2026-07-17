@@ -2,7 +2,9 @@
 column: done
 labels: [webview, docs]
 priority: med
-updatedAt: 2026-07-16T13:05:00.000Z
+release: v0.1.0
+effort: M
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Decision & docs rendered reading views
 

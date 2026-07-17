@@ -2,7 +2,9 @@
 column: done
 labels: [testing]
 priority: high
-updatedAt: 2026-07-16T17:45:00.000Z
+release: v0.1.0
+effort: L
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Unit and end-to-end test suites
 

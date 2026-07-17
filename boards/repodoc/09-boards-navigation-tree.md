@@ -2,7 +2,9 @@
 column: done
 labels: [core]
 priority: med
-updatedAt: 2026-07-17T10:05:00.000Z
+release: v0.2.0
+effort: M
+updatedAt: 2026-07-17T13:00:00.000Z
 ---
 # Rich boards navigation tree
 

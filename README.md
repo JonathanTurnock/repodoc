@@ -28,6 +28,10 @@ Click a card for the full picture — priority, live agent status, description, 
 
 ![Card detail with checklist](images/card.png)
 
+## Workflows with gates
+
+Columns can declare **enter/exit gates** — conditions a card must satisfy to move. A gate can require a passing command, a complete checklist, a filled-in field, or a named person's approval. On this board a card can't enter **In Review** until `npm test` passes, and can't reach **Done** without a peer review — the agent records the evidence in the card's `## Gates` section, and approvals are signed by the reviewer's git identity. The process lives in config, so it shows up in diffs and is honored by the agents editing the files.
+
 ## Decision records
 
 Capture the *why* behind architectural choices as numbered markdown records with a status lifecycle (Proposed → Accepted → Superseded). Agents read them before touching related code.
@@ -51,7 +55,7 @@ Everything lives in four places:
 | Path | Contents |
 | --- | --- |
 | `boards/<board-id>/NN-slug.md` | One card per file — frontmatter holds column, labels, priority, agent, live status |
-| `boards/<board-id>/.config.json` | Board name, columns, WIP limits, labels, agents |
+| `boards/<board-id>/.config.json` | Board name, columns (with WIP limits and gates), labels, agents, custom fields |
 | `decisions/NN-slug.md` | Decision records — frontmatter `status:` and `date:` |
 | `docs/NN-slug.md` | Documentation tree (numeric prefix orders the sidebar) |
 
@@ -62,6 +66,7 @@ Tell your agent the conventions once (or drop them in your agent instructions fi
 - Pick up a card by setting `agent: <you>` and `column: doing` in its frontmatter.
 - Report progress with `live: true`, `status: <one-liner>`, `progress: 0-100`.
 - Tick checklist items (`- [x]`) as you complete them.
+- Set any **custom fields** the board defines (e.g. `release: v0.2.0`, `estimate: 5`) as flat frontmatter keys.
 - Made a significant choice? Add the next `decisions/NN-*.md` and link it from the card.
 
 RepoDoc watches the files and updates the board live.
