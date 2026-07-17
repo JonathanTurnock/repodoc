@@ -18,29 +18,114 @@ abstract class RefreshableTreeProvider<T> implements vscode.TreeDataProvider<T> 
   abstract getChildren(element?: T): T[];
 }
 
-export class BoardsTreeProvider extends RefreshableTreeProvider<BoardRef> {
+/** A node in the rich Boards tree: board → columns → cards. */
+export type BoardsNode =
+  | { kind: 'board'; ref: BoardRef }
+  | { kind: 'column'; boardId: string; columnId: string; name: string; count: number }
+  | {
+      kind: 'card';
+      boardId: string;
+      cardId: string;
+      title: string;
+      priority?: string;
+      agent?: string;
+    };
+
+export class BoardsTreeProvider extends RefreshableTreeProvider<BoardsNode> {
   constructor(private readonly store: RepoDocStore) {
     super();
   }
 
-  getTreeItem(ref: BoardRef): vscode.TreeItem {
-    const item = new vscode.TreeItem(ref.name, vscode.TreeItemCollapsibleState.None);
-    item.description = String(ref.cardCount);
-    item.iconPath = new vscode.ThemeIcon('project');
-    item.contextValue = 'repodoc.board';
+  getTreeItem(node: BoardsNode): vscode.TreeItem {
+    if (node.kind === 'board') {
+      const item = new vscode.TreeItem(
+        node.ref.name,
+        vscode.TreeItemCollapsibleState.Expanded,
+      );
+      item.id = `board:${node.ref.id}`;
+      item.description = String(node.ref.cardCount);
+      item.iconPath = new vscode.ThemeIcon('project');
+      item.contextValue = 'repodoc.board';
+      item.command = {
+        command: 'repodoc.openBoard',
+        title: 'Open Board',
+        arguments: [node.ref.id],
+      };
+      return item;
+    }
+    if (node.kind === 'column') {
+      const item = new vscode.TreeItem(
+        node.name,
+        node.count > 0
+          ? vscode.TreeItemCollapsibleState.Collapsed
+          : vscode.TreeItemCollapsibleState.None,
+      );
+      item.id = `column:${node.boardId}:${node.columnId}`;
+      item.description = String(node.count);
+      item.iconPath = new vscode.ThemeIcon('layout-panel-left');
+      item.contextValue = 'repodoc.column';
+      return item;
+    }
+    const item = new vscode.TreeItem(node.title, vscode.TreeItemCollapsibleState.None);
+    item.id = `card:${node.boardId}:${node.cardId}`;
+    item.tooltip = node.title;
+    item.iconPath = new vscode.ThemeIcon('circle-filled', priorityColor(node.priority));
+    item.contextValue = 'repodoc.card';
     item.command = {
-      command: 'repodoc.openBoard',
-      title: 'Open Board',
-      arguments: [ref.id],
+      command: 'repodoc.revealCard',
+      title: 'Open Card',
+      arguments: [node.boardId, node.cardId],
     };
     return item;
   }
 
-  getChildren(element?: BoardRef): BoardRef[] {
-    if (element) {
-      return [];
+  getChildren(element?: BoardsNode): BoardsNode[] {
+    if (!element) {
+      return this.store.listBoards().map((ref) => ({ kind: 'board' as const, ref }));
     }
-    return this.store.listBoards();
+    if (element.kind === 'board') {
+      const board = this.store.getBoard(element.ref.id);
+      if (!board) {
+        return [];
+      }
+      return board.columns.map((c) => ({
+        kind: 'column' as const,
+        boardId: element.ref.id,
+        columnId: c.id,
+        name: c.name,
+        count: c.cardIds.length,
+      }));
+    }
+    if (element.kind === 'column') {
+      const board = this.store.getBoard(element.boardId);
+      const column = board?.columns.find((c) => c.id === element.columnId);
+      if (!board || !column) {
+        return [];
+      }
+      return column.cardIds
+        .map((id) => board.cards[id])
+        .filter((card) => !!card)
+        .map((card) => ({
+          kind: 'card' as const,
+          boardId: element.boardId,
+          cardId: card.id,
+          title: card.title,
+          priority: card.priority,
+          agent: card.agent,
+        }));
+    }
+    return [];
+  }
+}
+
+function priorityColor(priority?: string): vscode.ThemeColor {
+  switch (priority) {
+    case 'high':
+      return new vscode.ThemeColor('charts.red');
+    case 'med':
+      return new vscode.ThemeColor('charts.yellow');
+    default:
+      return new vscode.ThemeColor('charts.lines');
   }
 }
 

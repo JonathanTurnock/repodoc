@@ -1,11 +1,23 @@
 /* RepoDoc — shared webview base styles.
    Linked BEFORE each view stylesheet (board.css / markdown.css). Holds the
    rules those views had in common: font-stack custom properties, the custom
-   scrollbar, and the top-bar breadcrumb. */
+   scrollbar, and the top-bar breadcrumb.
+
+   THEME-NATIVE: every chrome colour resolves from a VS Code `--vscode-*`
+   variable, with the original design hex kept as the var() fallback so the
+   standalone screenshot harness still renders the dark mock. */
 
 :root {
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace;
+  /* Follow the editor's fonts; keep the design stacks as fallbacks. */
+  --font-sans: var(
+    --vscode-font-family,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    system-ui,
+    sans-serif
+  );
+  --font-mono: var(--vscode-editor-font-family, ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, monospace);
 }
 
 * {
@@ -20,8 +32,8 @@ body {
 }
 
 body {
-  background: #181a1e;
-  color: #c7ccd4;
+  background: var(--vscode-editor-background, #181a1e);
+  color: var(--vscode-editor-foreground, #c7ccd4);
   font-family: var(--font-sans);
 }
 
@@ -30,13 +42,17 @@ body {
   height: 11px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--vscode-scrollbarSlider-background, rgba(255, 255, 255, 0.14));
   border-radius: 6px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: var(--vscode-scrollbarSlider-hoverBackground, rgba(255, 255, 255, 0.24));
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: var(--vscode-scrollbarSlider-activeBackground, rgba(255, 255, 255, 0.24));
   background-clip: content-box;
 }
 ::-webkit-scrollbar-track {
@@ -47,8 +63,8 @@ body {
 .topbar {
   height: 46px;
   flex: none;
-  background: #1f2226;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--vscode-editorWidget-background, #1f2226);
+  border-bottom: 1px solid var(--vscode-panel-border, rgba(255, 255, 255, 0.06));
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -62,13 +78,13 @@ body {
   min-width: 0;
 }
 .crumb-section {
-  color: #8a8f98;
+  color: var(--vscode-descriptionForeground, #8a8f98);
 }
 .crumb-sep {
-  color: #4b5058;
+  color: color-mix(in srgb, var(--vscode-descriptionForeground, #4b5058) 60%, transparent);
 }
 .crumb-leaf {
-  color: #eceef2;
+  color: var(--vscode-foreground, #eceef2);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;

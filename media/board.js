@@ -27,7 +27,7 @@
   /* ---- Inline SVG icons (from the design mock) ---- */
   var ICON = {
     search:
-      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8f98" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>',
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>',
     checklist:
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>',
     fileMeta:
@@ -35,13 +35,20 @@
     comment:
       '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>',
     fileModal:
-      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#7d828b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M13 2v7h7"></path></svg>',
+      '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path><path d="M13 2v7h7"></path></svg>',
     check:
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>',
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>',
   };
 
   /* ---- Priority mappings (single source of truth) ---- */
-  var PRIORITY_COLORS = { high: '#e5534b', med: '#d99a30', low: '#7d828b' };
+  // Priority accents are UI chrome, so they follow the theme's chart colours
+  // (red/amber for high/med, muted foreground for low). Each entry pairs the
+  // `--vscode-*` token with the original design hex kept as the CSS fallback.
+  var PRIORITY_VARS = {
+    high: { token: '--vscode-charts-red', hex: '#e5534b' },
+    med: { token: '--vscode-charts-yellow', hex: '#d99a30' },
+    low: { token: '--vscode-descriptionForeground', hex: '#7d828b' },
+  };
   var PRIORITY_LABELS = { high: 'High', med: 'Medium', low: 'Low' };
 
   /* ---- Helpers ---- */
@@ -160,8 +167,26 @@
   }
 
   // Tinted chip/pill style: solid text, translucent fill + border in the same hue.
+  // Used for DATA colours (labels) supplied verbatim from the board .config.json,
+  // so the 22/44 hex-alpha suffixes are applied to the literal colour.
   function tintStyle(color) {
     return 'color:' + color + ';background:' + color + '22;border:1px solid ' + color + '44;';
+  }
+
+  // Theme-aware equivalent of tintStyle for CHROME accents that resolve from a
+  // `--vscode-*` token. color-mix reproduces the 0x22 (~13%) fill and 0x44
+  // (~27%) border alphas against the resolved variable (hex kept as fallback).
+  function tintVar(token, hex) {
+    var c = 'var(' + token + ', ' + hex + ')';
+    return (
+      'color:' +
+      c +
+      ';background:color-mix(in srgb, ' +
+      c +
+      ' 13%, transparent);border:1px solid color-mix(in srgb, ' +
+      c +
+      ' 27%, transparent);'
+    );
   }
 
   function matches(card) {
@@ -240,7 +265,9 @@
         ';opacity:' +
         (state.filterAgent && !on ? '0.35' : '1') +
         ';box-shadow:' +
-        (on ? '0 0 0 2px #181a1e, 0 0 0 4px ' + a.color : 'none') +
+        (on
+          ? '0 0 0 2px var(--vscode-editor-background, #181a1e), 0 0 0 4px ' + a.color
+          : 'none') +
         ';';
       chips.push(
         h(
@@ -289,9 +316,10 @@
 
     var titleRow = [];
     if (card.priority === 'high' || card.priority === 'med') {
-      var pColor = PRIORITY_COLORS[card.priority];
-      var pGlow =
-        card.priority === 'high' ? 'rgba(229,83,75,.18)' : 'rgba(217,154,48,.16)';
+      var pv = PRIORITY_VARS[card.priority];
+      var pColor = 'var(' + pv.token + ', ' + pv.hex + ')';
+      var pGlowAlpha = card.priority === 'high' ? '18%' : '16%';
+      var pGlow = 'color-mix(in srgb, ' + pColor + ' ' + pGlowAlpha + ', transparent)';
       titleRow.push(
         h('span', {
           class: 'priority-dot',
@@ -585,25 +613,10 @@
   }
 
   function modalMeta(card) {
-    var agDef = agentDef(card.agent);
-    var assignee;
-    if (agDef) {
-      assignee = h('div', { class: 'assignee' }, [
-        h(
-          'span',
-          { class: 'assignee-avatar', style: 'background:' + agDef.color + ';' },
-          agDef.initials,
-        ),
-        h('span', { class: 'assignee-name' }, agDef.name),
-      ]);
-    } else {
-      assignee = h('span', { class: 'unassigned' }, 'Unassigned');
-    }
-    var prC = PRIORITY_COLORS[card.priority] || PRIORITY_COLORS.low;
+    var prV = PRIORITY_VARS[card.priority] || PRIORITY_VARS.low;
     var prL = PRIORITY_LABELS[card.priority] || PRIORITY_LABELS.med;
-    var priorityPill = h('span', { class: 'priority-pill', style: tintStyle(prC) }, prL);
+    var priorityPill = h('span', { class: 'priority-pill', style: tintVar(prV.token, prV.hex) }, prL);
     return h('div', { class: 'modal-cols' }, [
-      h('div', {}, [h('div', { class: 'field-label' }, 'Assignee'), assignee]),
       h('div', {}, [h('div', { class: 'field-label' }, 'Priority'), priorityPill]),
     ]);
   }

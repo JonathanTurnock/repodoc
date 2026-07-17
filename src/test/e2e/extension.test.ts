@@ -82,9 +82,17 @@ suite('RepoDoc e2e', () => {
       'repodoc.openDoc',
       'repodoc.newBoard',
       'repodoc.newDecision',
+      'repodoc.installAgentSkill',
     ]) {
       assert.ok(commands.includes(id), `missing command ${id}`);
     }
+  });
+
+  test('activation does not create agent skill files unprompted', () => {
+    // The workspace was wiped in suiteSetup and never had a skill installed, so
+    // syncInstalled() on activation must not have written any skill file.
+    assert.ok(!fs.existsSync(path.join(root, '.claude', 'skills')));
+    assert.ok(!fs.existsSync(path.join(root, '.opencode', 'skill')));
   });
 
   test('repodoc.init seeds boards, decisions and docs on the real FS', async () => {

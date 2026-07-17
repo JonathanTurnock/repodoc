@@ -14,3 +14,8 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 images/**
 .github/**
+boards/**
+decisions/**
+docs/**
+.claude/**
+.opencode/**

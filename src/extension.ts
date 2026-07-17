@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { RepoDocStore } from './core/store';
+import { AgentKind, SKILL_TARGETS, SkillManager } from './core/skillManager';
 import { NodeFileSystemAdapter } from './adapters/nodeFileSystem';
 import { MemFileSystemAdapter } from './adapters/memFileSystem';
 import { SystemClock } from './adapters/systemClock';
@@ -17,6 +18,18 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
   const root = folders && folders.length > 0 ? folders[0].uri.fsPath : undefined;
   const fileSystem = root ? new NodeFileSystemAdapter(root) : new MemFileSystemAdapter();
   const store = new RepoDocStore(fileSystem, new SystemClock(), root);
+  const skillManager = new SkillManager(fileSystem);
+
+  if (root) {
+    // Keep any already-installed agent skill files in step with the extension's
+    // bundled canonical content, so upgrading RepoDoc refreshes them silently.
+    const synced = skillManager.syncInstalled();
+    if (synced.length > 0) {
+      void vscode.window.showInformationMessage(
+        `RepoDoc: updated ${synced.length} agent skill file(s).`,
+      );
+    }
+  }
 
   if (root) {
     let debounce: ReturnType<typeof setTimeout> | undefined;
@@ -111,6 +124,17 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
       },
     ),
 
+    // Open (or reveal) a board and jump straight to a card's detail modal.
+    // Used by card items in the Boards tree.
+    vscode.commands.registerCommand(
+      'repodoc.revealCard',
+      (boardId: unknown, cardId: unknown): void => {
+        if (typeof boardId === 'string' && typeof cardId === 'string') {
+          BoardPanel.revealCard(context.extensionUri, store, boardId, cardId);
+        }
+      },
+    ),
+
     vscode.commands.registerCommand('repodoc.openDecision', (id: string) => {
       MarkdownPanel.showDecision(context.extensionUri, store, id);
     }),
@@ -145,6 +169,37 @@ export function activate(context: vscode.ExtensionContext): RepoDocApi {
       if (id) {
         MarkdownPanel.showDecision(context.extensionUri, store, id);
       }
+    }),
+
+    vscode.commands.registerCommand('repodoc.installAgentSkill', async () => {
+      if (!root) {
+        void vscode.window.showWarningMessage(
+          'RepoDoc: open a folder first — there is no workspace to install a skill into.',
+        );
+        return;
+      }
+      const installed = new Set(skillManager.installed());
+      type Item = vscode.QuickPickItem & { agent: AgentKind };
+      const base: Array<{ agent: AgentKind; label: string }> = [
+        { agent: 'claude', label: 'Claude Code' },
+        { agent: 'opencode', label: 'OpenCode' },
+      ];
+      const items: Item[] = base.map((item) => ({
+        agent: item.agent,
+        label: item.label,
+        detail: SKILL_TARGETS[item.agent],
+        description: installed.has(item.agent) ? '(installed)' : undefined,
+      }));
+      const picked = await vscode.window.showQuickPick(items, {
+        placeHolder: 'Install the RepoDoc workflow skill for which agent?',
+      });
+      if (!picked) {
+        return;
+      }
+      skillManager.install(picked.agent);
+      void vscode.window.showInformationMessage(
+        `RepoDoc: installed agent skill at ${SKILL_TARGETS[picked.agent]}`,
+      );
     }),
   );
 

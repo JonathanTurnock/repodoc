@@ -99,6 +99,11 @@
         "title": "New Decision",
         "category": "RepoDoc",
         "icon": "$(add)"
+      },
+      {
+        "command": "repodoc.installAgentSkill",
+        "title": "Install Agent Skill",
+        "category": "RepoDoc"
       }
     ],
     "menus": {

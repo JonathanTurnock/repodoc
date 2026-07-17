@@ -63,5 +63,14 @@ suite('RepoDoc demo driver', () => {
       'docs/01-getting-started/01-introduction.md',
     );
     await phase('docs', 2000);
+
+    // Prove native theming: same board, light theme. Posting an unknown card
+    // id closes the modal left open by the card phase (render() drops it).
+    await vscode.commands.executeCommand('repodoc.openBoard', 'project-backlog');
+    await vscode.commands.executeCommand('repodoc.openCard', 'project-backlog', '__close__');
+    await vscode.workspace
+      .getConfiguration()
+      .update('workbench.colorTheme', 'Default Light Modern', vscode.ConfigurationTarget.Global);
+    await phase('light', 2500);
   });
 });

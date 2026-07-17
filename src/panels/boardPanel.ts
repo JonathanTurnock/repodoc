@@ -14,6 +14,9 @@ export class BoardPanel {
 
   private readonly disposables: vscode.Disposable[] = [];
 
+  /** Card to open once the webview reports `ready` (see revealCard). */
+  private pendingCardId: string | undefined;
+
   private constructor(
     private readonly panel: vscode.WebviewPanel,
     private readonly extensionUri: vscode.Uri,
@@ -81,6 +84,31 @@ export class BoardPanel {
     return true;
   }
 
+  /**
+   * Open (or reveal) a board panel and show a card's detail modal. If the
+   * webview is still loading, the open is queued and flushed on its `ready`.
+   */
+  public static revealCard(
+    extensionUri: vscode.Uri,
+    store: RepoDocStore,
+    boardId: string,
+    cardId: string,
+  ): void {
+    const existed = BoardPanel.panels.has(boardId);
+    BoardPanel.createOrShow(extensionUri, store, boardId);
+    const panel = BoardPanel.panels.get(boardId);
+    if (!panel) {
+      return;
+    }
+    if (existed) {
+      // Live webview — the message lands now; queuing it would re-pop the
+      // modal on a later webview reload.
+      BoardPanel.postOpenCard(boardId, cardId);
+    } else {
+      panel.pendingCardId = cardId;
+    }
+  }
+
   private dispose(): void {
     BoardPanel.panels.delete(this.boardId);
     while (this.disposables.length) {
@@ -118,6 +146,11 @@ export class BoardPanel {
     switch (m.type as WebviewToHostMessage['type']) {
       case 'ready': {
         this.postData();
+        if (this.pendingCardId) {
+          const msg: OpenCardMessage = { type: 'openCard', cardId: this.pendingCardId };
+          this.pendingCardId = undefined;
+          void this.panel.webview.postMessage(msg);
+        }
         break;
       }
       case 'moveCard': {

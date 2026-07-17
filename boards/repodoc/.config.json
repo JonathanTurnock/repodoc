@@ -1,0 +1,21 @@
+{
+  "name": "RepoDoc",
+  "columns": [
+    { "id": "backlog", "name": "Backlog", "color": "#7d828b" },
+    { "id": "todo", "name": "To Do", "color": "#4c8bf5" },
+    { "id": "doing", "name": "In Progress", "color": "#5cd68a", "wip": 3 },
+    { "id": "review", "name": "In Review", "color": "#d99a30" },
+    { "id": "done", "name": "Done", "color": "#3fb27f" }
+  ],
+  "labels": {
+    "core": { "name": "core", "color": "#3fb27f" },
+    "webview": { "name": "webview", "color": "#4c8bf5" },
+    "bug": { "name": "bug", "color": "#e5534b" },
+    "ci": { "name": "ci", "color": "#d99a30" },
+    "docs": { "name": "docs", "color": "#9a7bd6" },
+    "testing": { "name": "testing", "color": "#c9a227" }
+  },
+  "agents": {
+    "claude": { "name": "Claude", "color": "#d97757", "initials": "CL" }
+  }
+}
